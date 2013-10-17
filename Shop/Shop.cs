@@ -5,6 +5,7 @@ using System.Linq;
 using System.Data;
 using System.IO;
 using System.Text;
+using System.Net;
 
 using Mono.Data.Sqlite;
 using MySql.Data.MySqlClient;
@@ -32,7 +33,7 @@ namespace Shop
         internal ShopData ShopList;
         public IDbConnection Database;
         public String SavePath = TShock.SavePath;
-        public shopConfig configObj { get; set; }
+        public ShopConfig configObj { get; set; }
         internal static string filepath { get { return Path.Combine(TShock.SavePath, "alternativeroot.json"); } }
 
         public override string Author
@@ -59,7 +60,7 @@ namespace Shop
         }
         public override void Initialize()
         {
-            configObj = new shopConfig();
+            configObj = new ShopConfig();
             SetupConfig();
             ShopList = new ShopData(this);
 
@@ -163,12 +164,16 @@ namespace Shop
                     switch (str.ToLower())
                     {
                         case "bloodmoon":
+                            cost = (int)(cost * ((100 - configObj.bloodmoon)/100));
                             break;
                         case "eclipse":
+                            cost = (int)(cost * ((100 - configObj.eclipse) / 100));
                             break;
                         case "night":
+                            cost = (int)(cost * ((100 - configObj.night)/100));
                             break;
                         case "day":
+                            cost = (int)(cost * ((100 - configObj.day)/100));
                             break;
                     }
                 }
@@ -184,7 +189,7 @@ namespace Shop
             //Check if has locked down group permissions
             if (!groupAllowed(player, index))
             {
-                player.SendErrorMessage("Error: You do not have permissions to purchases {0}", item.name);
+                player.SendErrorMessage("Error: You do not have permissions to purchase {0}", item.name);
                 return;
             }
 
@@ -307,8 +312,8 @@ namespace Shop
             {
                 if (File.Exists(filepath))
                 {
-                    configObj = new shopConfig();
-                    configObj = shopConfig.Read(filepath);
+                    configObj = new ShopConfig();
+                    configObj = ShopConfig.Read(filepath);
                     return;
                 }
                 else
