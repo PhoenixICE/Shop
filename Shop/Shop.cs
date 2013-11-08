@@ -105,7 +105,7 @@ namespace Shop
                 new SqlColumn("onsale", MySqlDbType.VarChar) { Length = 30 }
                 ));
             sqlcreator.EnsureExists(new SqlTable("store.trade",
-                new SqlColumn("ID", MySqlDbType.Int32) { Primary = true, AutoIncrement = true },
+                new SqlColumn("ID", MySqlDbType.VarChar) { Primary = true, Length = 30 },
                 new SqlColumn("User", MySqlDbType.VarChar) { Length = 30 },
                 new SqlColumn("ItemID", MySqlDbType.Int32),
                 new SqlColumn("Stack", MySqlDbType.Int32),
@@ -113,7 +113,7 @@ namespace Shop
                 new SqlColumn("WStack", MySqlDbType.Int32)
                 ));
             sqlcreator.EnsureExists(new SqlTable("store.offer",
-                new SqlColumn("ID", MySqlDbType.Int32) { Primary = true, AutoIncrement = true },
+                new SqlColumn("ID", MySqlDbType.VarChar) { Primary = true, Length = 30 },
                 new SqlColumn("User", MySqlDbType.VarChar) { Length = 30 },
                 new SqlColumn("ItemID", MySqlDbType.Int32),
                 new SqlColumn("Stack", MySqlDbType.Int32),
@@ -237,12 +237,17 @@ namespace Shop
                 if (args.Parameters.Count == 2)
                 {
                     int id;
-                    if(!int.TryParse(args.Parameters[1], out id))
+                    if(int.TryParse(args.Parameters[1], out id))
                     {
-                        args.Player.SendErrorMessage("Error: Incorrect ID Entered");
+                        args.Player.SendErrorMessage("Error: Inccorect ID entered!");
                         return;
                     }
                     TradeObj obj = TradeList.TradeObjByID(id);
+                    if (obj == null)
+                    {
+                        args.Player.SendErrorMessage("Error: Could not locate the Trade ID!");
+                        return;
+                    }
                     //check if wanted item is listed, otherwise exit
                     if (obj.WItemID == 0)
                     {
@@ -306,19 +311,31 @@ namespace Shop
                         {
                             if (args.TPlayer.inventory[i].stack == stack)
                             {
-                                //all conditions met, delete item and delete entry, add witem as the prize
-                                
+                                //all conditions met, delete item and add offer entry.   
+                                TradeList.processOffer(args.Player, id, itemid, stack);
                                 args.TPlayer.inventory[i].SetDefaults(0);
+                                args.Player.SendInfoMessage("Sucess: Offer Completed Successfully! You have offered {0} of {1}.", stack, TShock.Utils.GetItemById(itemid).name);
                                 return;
                             }
                             else
                             {
                                 //failed cause not enough stacks from player
-                                args.Player.SendErrorMessage("Error: Offer could not be completed, you have entered more stacks then you have!");
+                                args.Player.SendErrorMessage("Error: Offer could not be completed, you have offered more stacks then you have!");
                                 return;
                             }
                         }
                     }
+                    args.Player.SendErrorMessage("Error: Offer could not be completed, you do not have that item to offer");
+                    args.Player.SendErrorMessage("Error: Offered Item - {0}", TShock.Utils.GetItemById(itemid).name);
+                    return;
+                }
+            }else if (Switch == "accept")
+            {
+                if (args.Parameters.Count == 1 || args.Parameters.Count >= 4)
+                {
+                    args.Player.SendInfoMessage("Info: /trade offer {id} {item} {stack}");
+                    args.Player.SendInfoMessage("Info: use /trade list, to find lists of ID to trade");
+                    return;
                 }
             }
         }

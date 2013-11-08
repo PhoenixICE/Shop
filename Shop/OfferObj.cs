@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Shop
 {
-    internal class TradeOfferObj
+    internal class OfferObj
     {
         public int ID = new int();
         public string User = "";
@@ -14,7 +14,7 @@ namespace Shop
         public int Stack = new int();
         public int Type = new int();
 
-        public TradeOfferObj(int id, string user, int itemid, int stack, int type)
+        public OfferObj(int id, string user, int itemid, int stack, int type)
         {
             this.ID = id;
             this.User = user;
