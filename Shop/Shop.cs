@@ -263,6 +263,7 @@ namespace Shop
                                 TradeList.processTrade(args.Player, obj, witem, wstack);
                                 args.TPlayer.inventory[i].SetDefaults(obj.ItemID);
                                 args.TPlayer.inventory[i].stack = obj.Stack;
+                                args.Player.SendInfoMessage("Sucess: Trade Completed Successfully! You have gained {0} of {1}.", obj.Stack, TShock.Utils.GetItemById(obj.ItemID).name);
                                 return;
                             }
                             else
@@ -295,7 +296,28 @@ namespace Shop
                     int stack;
                     if (!int.TryParse(args.Parameters[2], out id) || !int.TryParse(args.Parameters[3], out itemid) || !int.TryParse(args.Parameters[4], out stack))
                     {
-
+                        args.Player.SendInfoMessage("Info: /trade offer {id} {item} {stack}");
+                        args.Player.SendInfoMessage("Info: use /trade list, to find lists of ID to trade");
+                        return;
+                    }
+                    for (int i = 0; i < 48; i++)
+                    {
+                        if (args.TPlayer.inventory[i].netID == itemid)
+                        {
+                            if (args.TPlayer.inventory[i].stack == stack)
+                            {
+                                //all conditions met, delete item and delete entry, add witem as the prize
+                                
+                                args.TPlayer.inventory[i].SetDefaults(0);
+                                return;
+                            }
+                            else
+                            {
+                                //failed cause not enough stacks from player
+                                args.Player.SendErrorMessage("Error: Offer could not be completed, you have entered more stacks then you have!");
+                                return;
+                            }
+                        }
                     }
                 }
             }
