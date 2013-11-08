@@ -31,6 +31,7 @@ namespace Shop
     public class Shop : TerrariaPlugin
     {
         internal ShopData ShopList;
+        internal TradeData TradeList;
         public IDbConnection Database;
         public String SavePath = TShock.SavePath;
         public ShopConfig configObj { get; set; }
@@ -63,6 +64,7 @@ namespace Shop
             configObj = new ShopConfig();
             SetupConfig();
             ShopList = new ShopData(this);
+            TradeList = new TradeData(this);
 
             switch (TShock.Config.StorageType.ToLower())
             {
@@ -88,12 +90,12 @@ namespace Shop
                     }
 
 
-                    string sql = Path.Combine(SavePath, "alternativeroot.sqlite");
+                    string sql = Path.Combine(SavePath, "Shop.sqlite");
                     Database = new SqliteConnection(string.Format("uri=file://{0},Version=3", sql));
                     break;
             }
             SqlTableCreator sqlcreator = new SqlTableCreator(Database, Database.GetSqlType() == SqlType.Sqlite ? (IQueryBuilder)new SqliteQueryCreator() : new MysqlQueryCreator());
-            sqlcreator.EnsureExists(new SqlTable("alternativeroot",
+            sqlcreator.EnsureExists(new SqlTable("store.shop",
                 new SqlColumn("name", MySqlDbType.VarChar) { Primary = true, Length = 30 },
                 new SqlColumn("price", MySqlDbType.Int32),
                 new SqlColumn("region", MySqlDbType.VarChar) { Length = 30 },
@@ -102,14 +104,225 @@ namespace Shop
                 new SqlColumn("stock", MySqlDbType.Int32),
                 new SqlColumn("onsale", MySqlDbType.VarChar) { Length = 30 }
                 ));
+            sqlcreator.EnsureExists(new SqlTable("store.trade",
+                new SqlColumn("ID", MySqlDbType.Int32) { Primary = true, AutoIncrement = true },
+                new SqlColumn("User", MySqlDbType.VarChar) { Length = 30 },
+                new SqlColumn("ItemID", MySqlDbType.Int32),
+                new SqlColumn("Stack", MySqlDbType.Int32),
+                new SqlColumn("WItemID", MySqlDbType.Int32),
+                new SqlColumn("WStack", MySqlDbType.Int32)
+                ));
+            sqlcreator.EnsureExists(new SqlTable("store.offer",
+                new SqlColumn("ID", MySqlDbType.Int32) { Primary = true, AutoIncrement = true },
+                new SqlColumn("User", MySqlDbType.VarChar) { Length = 30 },
+                new SqlColumn("ItemID", MySqlDbType.Int32),
+                new SqlColumn("Stack", MySqlDbType.Int32),
+                new SqlColumn("TradeID", MySqlDbType.Int32)
+                ));
 
-            Commands.ChatCommands.Add(new Command("", shop, "shop"));
-            Commands.ChatCommands.Add(new Command("shop.reloadItems", shopreload, "shopreload"));
+            Commands.ChatCommands.Add(new Command("store.shop", shop, "shop"));
+            Commands.ChatCommands.Add(new Command("shop.reloaditems", shopreload, "reloadstore"));
+            Commands.ChatCommands.Add(new Command("store.trade", trade, "trade"));
+        }
+        //trade {market} {item} {amount} {item} {amount}
+        private void trade(CommandArgs args)
+        {            
+            //main args switch
+            string Switch = args.Parameters[0].ToLower();
+            if (Switch == "add")
+            {
+                if (!args.Player.Group.HasPermission("shop.trade.add"))
+                {
+                    args.Player.SendErrorMessage("Error: You do not have permission to add trades!");
+                    return;
+                }
+                //display help as no item specificed | or too many params
+                if (args.Parameters.Count == 1 || args.Parameters.Count >= 6)
+                {
+                    args.Player.SendInfoMessage("Info: /trade add {item} {amount} [item] [amount]");
+                    args.Player.SendInfoMessage("Info: Set the item you wish to trade and the amount of them, optionally set the item you wish to trade for and the amount of them");
+                    return;
+                }
+                //Trading with minimum required amount of args
+                if (args.Parameters.Count == 3)
+                {
+                    int stack;
+                    if(!int.TryParse(args.Parameters[2], out stack))
+                    {
+                        args.Player.SendInfoMessage("Info: /trade add {item} {amount} [item] [amount]");
+                        args.Player.SendInfoMessage("Info: Set the item you wish to trade and the amount of them, optionally set the item you wish to trade for and the amount of them");
+                    }
+                    if (stack == 0)
+                    {
+                        args.Player.SendErrorMessage("Error: Can't have stack size of zero");
+                        return;
+                    }
+                    Item item = getItem(args.Player, args.Parameters[1], 1);
+                    AddTrade(args.Player, item, stack);
+                    return;
+                }
+                //Trading with maximum required amount of args
+                if (args.Parameters.Count == 5)
+                {
+                    int stack;
+                    if (!int.TryParse(args.Parameters[2], out stack))
+                    {
+                        args.Player.SendInfoMessage("Info: /trade add {item} {amount} [item] [amount]");
+                        args.Player.SendInfoMessage("Info: Set the item you wish to trade and the amount of them, optionally set the item you wish to trade for and the amount of them");
+                    }
+                    if (stack == 0)
+                    {
+                        args.Player.SendErrorMessage("Error: Can't have stack size of zero");
+                        return;
+                    }
+                    Item item = getItem(args.Player, args.Parameters[1], 1);
+                    int wstack;
+                    if (!Int32.TryParse(args.Parameters[2], out wstack))
+                    {
+                        args.Player.SendInfoMessage("Info: /trade add {item} {amount} [item] [amount]");
+                        args.Player.SendInfoMessage("Info: Set the item you wish to trade and the amount of them, optionally set the item you wish to trade for and the amount of them");
+                    }
+                    if (wstack == 0)
+                    {
+                        args.Player.SendErrorMessage("Error: Can't have stack size of zero");
+                        return;
+                    }
+                    Item witem = getItem(args.Player, args.Parameters[1], 1);
+                    AddTrade(args.Player, item, stack, witem, wstack);
+                    return;
+                }
+            }
+            else if(Switch == "list")
+            {
+                if (!args.Player.Group.HasPermission("store.trade.list"))
+                {
+                    args.Player.SendErrorMessage("Error: You do not have permission to list trades!");
+                    return;
+                }
+                //List first 7 pages
+                if (args.Parameters.Count <= 2)
+                {
+                    int page;
+                    if (!int.TryParse(args.Parameters[1], out page))
+                    {
+                        page = 9;
+                    }
+                    else
+                    {
+                        page *= 9;
+                    }
+                    args.Player.SendInfoMessage("ID - User - Item:Stack - Wanted:Stack");
+                    for (int i = page - 9; i < page; i++)
+                    {
+                        args.Player.SendInfoMessage("{0} - {1} - {2}:{3} - {4}:{5}", TradeList.tradeObj[i].ID, TradeList.tradeObj[i].User, TShock.Utils.GetItemById(TradeList.tradeObj[i].ItemID).name, TradeList.tradeObj[i].Stack, TShock.Utils.GetItemById(TradeList.tradeObj[i].WItemID).name, TradeList.tradeObj[i].WStack);
+                    }
+                    return;
+                }
+            }
+            else if (Switch == "accept")
+            {
+                if (!args.Player.Group.HasPermission("store.trade.accept"))
+                {
+                    args.Player.SendErrorMessage("Error: You do not have permission to accept trades!");
+                    return;
+                }
+                //display help as no item specificed | or too many params
+                if (args.Parameters.Count == 1 || args.Parameters.Count >= 3)
+                {
+                    args.Player.SendInfoMessage("Info: /trade accept {id}");
+                    args.Player.SendInfoMessage("Info: use /trade list, to accept lists of trades");
+                    return;
+                }
+                //Trading with required amount of args
+                if (args.Parameters.Count == 2)
+                {
+                    int id;
+                    if(!int.TryParse(args.Parameters[1], out id))
+                    {
+                        args.Player.SendErrorMessage("Error: Incorrect ID Entered");
+                        return;
+                    }
+                    TradeObj obj = TradeList.TradeObjByID(id);
+                    //check if wanted item is listed, otherwise exit
+                    if (obj.WItemID == 0)
+                    {
+                        args.Player.SendErrorMessage("Error: Cannot accept trade as no wanted item is listed.");
+                        args.Player.SendErrorMessage("Error: Please use /trade offer, to make an offer to the player.");
+                        return;
+                    }
+                    Item witem = TShock.Utils.GetItemById(obj.WItemID);
+                    int wstack = obj.WStack;
+                    //check if player actually has the item requested
+                    for (int i = 0; i < 48; i++)
+                    {
+                        if (args.TPlayer.inventory[i].netID == witem.netID)
+                        {
+                            if (args.TPlayer.inventory[i].stack == wstack)
+                            {
+                                //all conditions met, delete item and delete entry, add witem as the prize
+                                TradeList.processTrade(args.Player, obj, witem, wstack);
+                                args.TPlayer.inventory[i].SetDefaults(obj.ItemID);
+                                args.TPlayer.inventory[i].stack = obj.Stack;
+                                return;
+                            }
+                            else
+                            {
+                                //failed cause not enough stacks from player
+                                args.Player.SendErrorMessage("Error: Trade could not be completed, you do not have enough stacks of that item");
+                                args.Player.SendErrorMessage("Error: Total Required Amount - {0}", wstack);
+                                return;
+                            }
+                        }
+                    }
+                    args.Player.SendErrorMessage("Error: Trade could not be completed, you do not have the required item");
+                    args.Player.SendErrorMessage("Error: Required Item - {0}", witem.name);
+                    return;
+                }
+            }
+            //trade offer {id} {item} {stack}
+            else if (Switch == "offer")
+            {
+                if (args.Parameters.Count == 1 || args.Parameters.Count >= 4)
+                {
+                    args.Player.SendInfoMessage("Info: /trade offer {id} {item} {stack}");
+                    args.Player.SendInfoMessage("Info: use /trade list, to find lists of ID to trade");
+                    return;
+                }
+                else if (args.Parameters.Count == 4)
+                {
+                    int id;
+                    int itemid;
+                    int stack;
+                    if (!int.TryParse(args.Parameters[2], out id) || !int.TryParse(args.Parameters[3], out itemid) || !int.TryParse(args.Parameters[4], out stack))
+                    {
+
+                    }
+                }
+            }
+        }
+
+        private void AcceptTrade()
+        {
+
+        }
+
+        private void AddTrade(TSPlayer player, Item item, int amount, Item witem = null, int wamount = 0)
+        {
+            //add to trade
+            if (witem == null)
+            {
+                TradeList.addTrade(player.Name, item.netID, amount);
+            }
+            else
+            {
+                TradeList.addTrade(player.Name, item.netID, amount, witem.netID, wamount);
+            }            
         }
 
         private void shopreload(CommandArgs args)
         {
-            throw new NotImplementedException();
+            SetupConfig();
+            return;
         }
 
         private void shop(CommandArgs args)
@@ -118,7 +331,7 @@ namespace Shop
             string Switch = args.Parameters[0].ToLower();
             if (Switch == "buy")
             {
-                if (!args.Player.Group.HasPermission("shop.buyItems"))
+                if (!args.Player.Group.HasPermission("store.shop.buy"))
                 {
                     args.Player.SendErrorMessage("Error: You do not have permission to buy items!");
                     return;
@@ -126,7 +339,7 @@ namespace Shop
                 //display help as no item specificed | or too many params
                 if (args.Parameters.Count == 1 || args.Parameters.Count >= 4)
                 {
-                    args.Player.SendInfoMessage("Info: /shop buy Item [Amount]");
+                    args.Player.SendInfoMessage("Info: /shop {buy} {item} [amount]");
                     return;
                 }
                 //purchase without stack specified
@@ -299,7 +512,7 @@ namespace Shop
             }
             if (stack > item.maxStack)
             {
-                player.SendErrorMessage("Error: Purchase stacks is greater then maximum stack size");
+                player.SendErrorMessage("Error: Stacks entered is greater then maximum stack size");
                 return null;
             }
             //all checks passed return true;

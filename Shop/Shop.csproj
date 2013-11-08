@@ -61,6 +61,9 @@
     <Compile Include="Shop.cs" />
     <Compile Include="ShopConfig.cs" />
     <Compile Include="ShopData.cs" />
+    <Compile Include="TradeData.cs" />
+    <Compile Include="TradeObj.cs" />
+    <Compile Include="TradeOfferObj.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

@@ -13,16 +13,16 @@ namespace Shop
     {
         private Shop main;
         public List<string> name = new List<string>();
-        public List<Int32> price = new List<Int32>();
+        public List<int> price = new List<int>();
         public List<List<Region>> region = new List<List<Region>>();
         public List<List<Group>> group = new List<List<Group>>();
-        public List<Int32> restockTimer = new List<Int32>();
-        public List<Int32> stock = new List<Int32>();
+        public List<int> restockTimer = new List<int>();
+        public List<int> stock = new List<int>();
         public List<string> onsale = new List<string>();
 
         public void updateShopData()
         {
-            QueryResult result = main.Database.QueryReader("SELECT * FROM shop");
+            QueryResult result = main.Database.QueryReader("SELECT * FROM store.shop");
             using (result)
             {
                 while (result.Read())
