@@ -21,8 +21,8 @@ namespace Shop
         //adds new trade entry, and updates interal cached data.
         public void addTrade(string user, int itemid, int stack, int witemid = 0, int wstack = 0)
         {
-            main.Database.Query("INSERT INTO store.trade(ID, User, ItemID, Stack, WItemID, WStack) VALUES(@0,@1,@2,@3,@4,@5)",tradeID,user,itemid,stack,witemid,wstack);
-            this.tradeObj.Add(new TradeObj(this.tradeObj[this.tradeObj.Count - 1].ID + 1, user, itemid, stack, witemid, wstack));
+            main.Database.Query("INSERT INTO storetrade(ID, User, ItemID, Stack, WItemID, WStack) VALUES(@0,@1,@2,@3,@4,@5)",tradeID,user,itemid,stack,witemid,wstack);
+            this.tradeObj.Add(new TradeObj(tradeID, user, itemid, stack, witemid, wstack));
             tradeID += 1;
         }
 
@@ -52,42 +52,68 @@ namespace Shop
 
         public void processTrade(TSPlayer player, TradeObj obj, Item item, int stack)
         {
-            main.Database.Query("DELETE * FROM store.trade WHERE ID = {0}", obj.ID);
+            main.Database.Query("DELETE FROM storetrade WHERE ID = @0", obj.ID);            
+            main.Database.Query("INSERT INTO storeoffer(ID, User, ItemID, Stack, TradeID) VALUES(@0,@1,@2,@3,@4)", offerID, obj.User, item.netID, stack, -1);
             tradeObj.Remove(obj);
-            main.Database.Query("INESRT INTO store.offer(ID, User, ItemID, Stack, TradeID) VALUES(@0,@1,@2,@3,@4)", offerID, player.Name, item.netID, stack, -1);
-            offerID += 1;
-            offerObj.Add(new OfferObj(offerID, player.Name, item.netID, stack, -1));
+            offerObj.Add(new OfferObj(offerID, obj.User, item.netID, stack, -1));
+            offerID += 1;            
         }
 
         public void processOffer(TSPlayer player, int id, int itemid, int stack)
         {
-            main.Database.Query("INESRT INTO store.offer(ID, User, ItemID, Stack, TradeID) VALUES(@0,@1,@2,@3,@4)", offerID, player.Name, itemid, stack, id);
-            offerID += 1;
+            main.Database.Query("INSERT INTO storeoffer(ID, User, ItemID, Stack, TradeID) VALUES(@0,@1,@2,@3,@4)", offerID, player.Name, itemid, stack, id);
             offerObj.Add(new OfferObj(offerID, player.Name, itemid, stack, id));
+            offerID += 1;
+        }
+
+        internal void processAccept(TSPlayer player, OfferObj obj)
+        {
+            //remove offer
+            main.Database.Query("DELETE FROM storeoffer WHERE ID = @0", obj.ID);
+            //remove trade and create offer inplace of trade
+            if (obj.Type != -1)
+            {
+                TradeObj obj2 = TradeObjByID(obj.Type);
+                if (obj2 == null)
+                {
+                    player.SendErrorMessage("Error: Major Database Desync has occured - Transaction ID: {0} does not exist!", obj.Type);
+                    return;
+                }
+                main.Database.Query("DELETE FROM storetrade WHERE ID = @0", obj2.ID);
+                main.Database.Query("INSERT INTO storeoffer(ID, User, ItemID, Stack, TradeID) VALUES(@0,@1,@2,@3,@4)", offerID, player.Name, obj2.ItemID, obj2.Stack, -1);
+                offerID += 1;
+                tradeObj.Remove(obj2);
+            }
+            offerObj.Remove(obj);
+        }
+
+        public void returnOffer(OfferObj obj)
+        {
+            main.Database.Query("UPDATE storeoffer SET TradeID = {0} WHERE ID = {1}", -1, obj.ID);
         }
 
         public void updateTradeData()
         {
-            QueryResult result = main.Database.QueryReader("SELECT * FROM store.trade");
+            QueryResult result = main.Database.QueryReader("SELECT * FROM storetrade");
             using (result)
             {
                 while (result.Read())
                 {
                     this.tradeObj.Add(new TradeObj(result.Get<int>("ID"), result.Get<string>("User"), result.Get<int>("ItemID"), result.Get<int>("Stack"), result.Get<int>("WItemID"), result.Get<int>("WStack")));
-                    tradeID += 1;
+                    tradeID = result.Get<int>("ID") + 1;
                 }
             }
             result.Dispose();
         }
         public void updateOfferData()
         {
-            QueryResult result = main.Database.QueryReader("SELECT * FROM store.offer");
+            QueryResult result = main.Database.QueryReader("SELECT * FROM storeoffer");
             using (result)
             {
                 while (result.Read())
                 {
                     this.offerObj.Add(new OfferObj(result.Get<int>("ID"), result.Get<string>("User"), result.Get<int>("ItemID"), result.Get<int>("Stack"), result.Get<int>("TradeID")));
-                    offerID += 1;
+                    offerID = result.Get<int>("ID") + 1;
                 }
             }
             result.Dispose();
