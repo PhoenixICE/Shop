@@ -89,7 +89,7 @@ namespace Shop
 
         public void returnOffer(OfferObj obj)
         {
-            main.Database.Query("UPDATE storeoffer SET TradeID = {0} WHERE ID = {1}", -1, obj.ID);
+            main.Database.Query("UPDATE storeoffer SET TradeID = @0 WHERE ID = @1", -1, obj.ID);
         }
 
         public void updateTradeData()

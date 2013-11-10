@@ -137,8 +137,185 @@ namespace Shop
             Commands.ChatCommands.Add(new Command("store.shop", shop, "shop"));
             Commands.ChatCommands.Add(new Command("store.admin", shopreload, "reloadstore"));
             Commands.ChatCommands.Add(new Command("store.trade", trade, "trade"));
+            Commands.ChatCommands.Add(new Command("store.offer", offer, "offer"));
         }
-        //trade {market} {item} {amount} {item} {amount}
+        //offer switch
+        private void offer(CommandArgs args)
+        {
+            try
+            {
+                //list help
+                if (args.Parameters.Count == 0)
+                {
+                    args.Player.SendInfoMessage("Info: Type the below commands for more info");
+                    args.Player.SendInfoMessage("Info: /offer add");
+                    args.Player.SendInfoMessage("Info: /offer accept");
+                    args.Player.SendInfoMessage("Info: /offer list");
+                    return;
+                }
+                string Switch = args.Parameters[0].ToLower();
+                if (Switch == "add")
+                {
+                    if (args.Parameters.Count != 4)
+                    {
+                        args.Player.SendInfoMessage("Info: /offer add {id} {item} {stack}");
+                        args.Player.SendInfoMessage("Info: use /trade list, to find lists of IDs to offer on");
+                        return;
+                    }
+                    if (args.Parameters.Count == 4)
+                    {
+                        int id;
+                        int stack;
+                        if (!int.TryParse(args.Parameters[1], out id))
+                        {
+                            args.Player.SendErrorMessage("Error: Invalid ID Entered!");
+                            return;
+                        }
+                        if (!int.TryParse(args.Parameters[3], out stack))
+                        {
+                            args.Player.SendErrorMessage("Error: Invalid Stack Entered!");
+                            return;
+                        }
+                        Item item = getItem(args.Player, args.Parameters[2], stack);
+                        for (int i = 0; i < 48; i++)
+                        {
+                            if (args.TPlayer.inventory[i].netID == item.netID)
+                            {
+                                if (args.TPlayer.inventory[i].stack == stack)
+                                {
+                                    //all conditions met, delete item and add offer entry.   
+                                    TradeList.processOffer(args.Player, id, item.netID, stack);
+                                    args.TPlayer.inventory[i].SetDefaults(0);
+                                    NetMessage.SendData((int)PacketTypes.PlayerSlot, -1, -1, "", args.Player.Index, i);
+                                    NetMessage.SendData((int)PacketTypes.PlayerSlot, args.Player.Index, -1, "", args.Player.Index, i);
+                                    args.Player.SendInfoMessage("Sucess: Offer Completed Successfully! You have offered {0} of {1}.", stack, item.name);
+                                    return;
+                                }
+                                else
+                                {
+                                    //failed cause not enough stacks from player
+                                    args.Player.SendErrorMessage("Error: Offer could not be completed, you have offered more stacks then you have!");
+                                    return;
+                                }
+                            }
+                        }
+                        args.Player.SendErrorMessage("Error: Offer could not be completed, you do not have that item to offer");
+                        args.Player.SendErrorMessage("Error: Offered Item - {0}", item.name);
+                        return;
+                    }
+                }
+                //offer accept {id}
+                else if (Switch == "accept")
+                {
+                    if (args.Parameters.Count != 2)
+                    {
+                        args.Player.SendInfoMessage("Info: /offer accept {id}");
+                        args.Player.SendInfoMessage("Info: use /trade list, to find lists of IDs to offer on");
+                        return;
+                    }
+                    int id;
+                    if (!int.TryParse(args.Parameters[1], out id))
+                    {
+                        args.Player.SendErrorMessage("Error: Invalid ID Entered!");
+                        return;
+                    }
+                    OfferObj oObj = TradeList.OfferObjByID(id);
+                    if (oObj == null)
+                    {
+                        args.Player.SendErrorMessage("Error: Incorrect ID Entered!");
+                        return;
+                    }
+                    TradeObj tObj = TradeList.TradeObjByID(oObj.Type);
+                    if (tObj == null)
+                    {
+                        args.Player.SendErrorMessage("Error: Something is really wrong with the databse - transaction ID: {0} does not exist!", oObj.Type);
+                        return;
+                    }
+                    if (args.Player.Name != tObj.User)
+                    {
+                        args.Player.SendErrorMessage("Error: You are not the owner of the trade!");
+                        return;
+                    }
+                    //all checks finally passed
+                    bool recived = false;
+                    for (int i = 0; i < 48; i++)
+                    {
+                        if (args.TPlayer.inventory[i].netID == 0)
+                        {
+                            //all conditions met, delete item and add offer entry.   
+                            args.TPlayer.inventory[i].SetDefaults(oObj.ItemID);
+                            args.TPlayer.inventory[i].stack = oObj.Stack;
+                            NetMessage.SendData((int)PacketTypes.PlayerSlot, -1, -1, "", args.Player.Index, i);
+                            NetMessage.SendData((int)PacketTypes.PlayerSlot, args.Player.Index, -1, "", args.Player.Index, i);
+                            int tradeID = oObj.Type;
+                            TradeList.processAccept(args.Player, oObj);
+                            args.Player.SendInfoMessage("Sucess: Item Collected! You have Gained {0} of {1}.", oObj.Stack, TShock.Utils.GetItemById(oObj.ItemID).name);
+                            recived = true;
+                            //remove all other offers and return to owner
+                            foreach (OfferObj obj in TradeList.offerObj)
+                            {
+                                if (obj.Type == tradeID)
+                                {
+                                    TradeList.returnOffer(obj);
+                                    obj.Type = -1;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                    if (!recived)
+                    {
+                        args.Player.SendErrorMessage("Error: You have no free inventory spaces!");
+                        return;
+                    }
+                    return;
+                }
+                //offer list
+                if (Switch == "list")
+                {
+                    if (args.Parameters.Count != 2)
+                    {
+                        args.Player.SendInfoMessage("Info: /offer list [id]");
+                        args.Player.SendInfoMessage("Info: Lists all offers for a trade ID");
+                        return;
+                    }
+                    if (args.Parameters.Count == 2)
+                    {
+                        int id;
+                        if (!int.TryParse(args.Parameters[1], out id))
+                        {
+                            args.Player.SendErrorMessage("Error: Invalid ID Entered!");
+                            return;
+                        }
+                        if (TradeList.TradeObjByID(id).User != args.Player.Name && !args.Player.Group.HasPermission("store.admin"))
+                        {
+                            args.Player.SendErrorMessage("Error: You cannot check offers on this item!");
+                            return;
+                        }
+                        args.Player.SendInfoMessage("ID - User - Offered Item:Stack");
+                        foreach (OfferObj obj in TradeList.offerObj)
+                        {
+                            if (obj.Type == id)
+                                args.Player.SendInfoMessage("{0} - {1} - {2}:{3}", obj.ID, obj.User, TShock.Utils.GetItemById(obj.ItemID).name, obj.Stack);
+                        }
+                        return;
+                    }
+                }
+                else
+                {
+                    args.Player.SendInfoMessage("Info: Type the below commands for more info");
+                    args.Player.SendInfoMessage("Info: /offer add");
+                    args.Player.SendInfoMessage("Info: /offer accept");
+                    args.Player.SendInfoMessage("Info: /offer list");
+                    return;                    
+                }
+            }
+            catch (Exception e)
+            {
+                Log.ConsoleError(e.ToString());
+            }
+        }
+        //trade switch
         private void trade(CommandArgs args)
         {
             try
@@ -297,7 +474,7 @@ namespace Shop
                         {
                             page = 9;
                         }
-                        args.Player.SendInfoMessage("ID - User - Item:Stack - Wanted:Stack");
+                        args.Player.SendMessage("ID - User - Item:Stack - Wanted:Stack", Color.Green);
                         for (int i = page - 9; i < page; i++)
                         {
                             if (i > TradeList.tradeObj.Count - 1)
@@ -376,212 +553,77 @@ namespace Shop
                         return;
                     }
                 }
-                //trade offer {id} {item} {stack}
-                else if (Switch == "offer")
-                {
-                    if (args.Parameters.Count != 4)
-                    {
-                        args.Player.SendInfoMessage("Info: /trade offer {id} {item} {stack}");
-                        args.Player.SendInfoMessage("Info: use /trade list, to find lists of ID to trade");
-                        return;
-                    }
-                    if (args.Parameters.Count == 4)
-                    {
-                        int id;
-                        int stack;
-                        if (!int.TryParse(args.Parameters[1], out id))
-                        {
-                            args.Player.SendErrorMessage("Error: Invalid ID Entered!");
-                            return;
-                        }
-                        if (!int.TryParse(args.Parameters[3], out stack))
-                        {
-                            args.Player.SendErrorMessage("Error: Invalid Stack Entered!");
-                            return;
-                        }
-                        Item item = getItem(args.Player, args.Parameters[2], stack);
-                        for (int i = 0; i < 48; i++)
-                        {
-                            if (args.TPlayer.inventory[i].netID == item.netID)
-                            {
-                                if (args.TPlayer.inventory[i].stack == stack)
-                                {
-                                    //all conditions met, delete item and add offer entry.   
-                                    TradeList.processOffer(args.Player, id, item.netID, stack);
-                                    args.TPlayer.inventory[i].SetDefaults(0);
-                                    NetMessage.SendData((int)PacketTypes.PlayerSlot, -1, -1, "", args.Player.Index, i);
-                                    NetMessage.SendData((int)PacketTypes.PlayerSlot, args.Player.Index, -1, "", args.Player.Index, i);
-                                    args.Player.SendInfoMessage("Sucess: Offer Completed Successfully! You have offered {0} of {1}.", stack, item.name);
-                                    return;
-                                }
-                                else
-                                {
-                                    //failed cause not enough stacks from player
-                                    args.Player.SendErrorMessage("Error: Offer could not be completed, you have offered more stacks then you have!");
-                                    return;
-                                }
-                            }
-                        }
-                        args.Player.SendErrorMessage("Error: Offer could not be completed, you do not have that item to offer");
-                        args.Player.SendErrorMessage("Error: Offered Item - {0}", item.name);
-                        return;
-                    }
-                }
                 else if (Switch == "check")
                 {
-                    if (args.Parameters.Count >= 3)
+                    if (args.Parameters.Count != 1)
                     {
-                        args.Player.SendInfoMessage("Info: /trade check [id]");
-                        args.Player.SendInfoMessage("Info: Lists your trades, or checks offers on an ID");
+                        args.Player.SendInfoMessage("Info: /trade check");
+                        args.Player.SendInfoMessage("Info: Lists your trades");
                         return;
                     }
                     //List trades
                     if (args.Parameters.Count == 1)
                     {
-                        args.Player.SendInfoMessage("ID - User - Item:Stack - Wanted:Stack");
+                        args.Player.SendMessage("ID - User - Item:Stack - Wanted:Stack", Color.Green);
                         foreach (TradeObj obj in TradeList.tradeObj)
                         {
                             if (obj.User == args.Player.Name)
                                 args.Player.SendInfoMessage("{0} - {1} - {2}:{3} - {4}:{5}", obj.ID, obj.User, TShock.Utils.GetItemById(obj.ItemID).name, obj.Stack, TShock.Utils.GetItemById(obj.WItemID).name, obj.WStack);
                         }
                         return;
-                    }
-                    //List offers
-                    if (args.Parameters.Count == 2)
-                    {
-                        int id;
-                        if (!int.TryParse(args.Parameters[1], out id))
-                        {
-                            args.Player.SendErrorMessage("Error: Invalid ID Entered!");
-                            return;
-                        }
-                        if (TradeList.TradeObjByID(id).User != args.Player.Name && !args.Player.Group.HasPermission("store.admin"))
-                        {
-                            args.Player.SendErrorMessage("Error: You cannot check offers on this item!");
-                            return;
-                        }
-                        args.Player.SendInfoMessage("ID - User - Offered Item:Stack");
-                        foreach (OfferObj obj in TradeList.offerObj)
-                        {
-                            if (obj.Type == id)
-                                args.Player.SendInfoMessage("{0} - {1} - {2}:{3}", obj.ID, obj.User, TShock.Utils.GetItemById(obj.ItemID).name, obj.Stack);
-                        }
-                        return;
-                    }
+                    }                    
                 }
                 else if (Switch == "collect")
                 {
-                    if (args.Parameters.Count() != 2)
+                    if (args.Parameters.Count() != 1)
                     {
-                        args.Player.SendInfoMessage("Info: /trade collect {id|all}");
+                        args.Player.SendInfoMessage("Info: /trade collect");
                         args.Player.SendInfoMessage("Info: Collects traded items from trades, and any finished/rejected trades");
-                        args.Player.SendInfoMessage("Info: Specifying id accepts that trade deal - use /trade check to find ids");
+                        //args.Player.SendInfoMessage("Info: Specifying id accepts that trade deal - use /trade check to find ids");
                         return;
                     }
-                    if (args.Parameters.Count() == 2)
+                    if (args.Parameters.Count() == 1)
                     {
-                        if (args.Parameters[1] == "all")
+                        for (int i2 = 0; i2 < TradeList.offerObj.Count(); i2++)
                         {
-                            for (int i2 = 0; i2 < TradeList.offerObj.Count(); i2++)
+                            OfferObj obj = TradeList.offerObj[i2];
+                            if (obj != null)
                             {
-                                OfferObj obj = TradeList.offerObj[i2];
-                                if (obj != null)
+                                if (obj.User == args.Player.Name && obj.Type == -1)
                                 {
-                                    if (obj.User == args.Player.Name && obj.Type == -1)
+                                    bool recived = false;
+                                    for (int i = 0; i < 48; i++)
                                     {
-                                        bool recived = false;
-                                        for (int i = 0; i < 48; i++)
+                                        if (args.TPlayer.inventory[i].netID == 0)
                                         {
-                                            if (args.TPlayer.inventory[i].netID == 0)
-                                            {
-                                                //all conditions met, delete item and add offer entry.   
-                                                args.TPlayer.inventory[i].SetDefaults(obj.ItemID);
-                                                args.TPlayer.inventory[i].stack = obj.Stack;
-                                                NetMessage.SendData((int)PacketTypes.PlayerSlot, -1, -1, "", args.Player.Index, i);
-                                                NetMessage.SendData((int)PacketTypes.PlayerSlot, args.Player.Index, -1, "", args.Player.Index, i);
-                                                TradeList.processAccept(args.Player, obj);
-                                                args.Player.SendInfoMessage("Sucess: Item Collected! You have Gained {0} of {1}.", obj.Stack, TShock.Utils.GetItemById(obj.ItemID).name);
-                                                recived = true;
-                                                i2 -= 1;
-                                                break;
-                                            }
+                                            //all conditions met, delete item and add offer entry.   
+                                            args.TPlayer.inventory[i].SetDefaults(obj.ItemID);
+                                            args.TPlayer.inventory[i].stack = obj.Stack;
+                                            NetMessage.SendData((int)PacketTypes.PlayerSlot, -1, -1, "", args.Player.Index, i);
+                                            NetMessage.SendData((int)PacketTypes.PlayerSlot, args.Player.Index, -1, "", args.Player.Index, i);
+                                            TradeList.processAccept(args.Player, obj);
+                                            args.Player.SendInfoMessage("Sucess: Item Collected! You have Gained {0} of {1}.", obj.Stack, TShock.Utils.GetItemById(obj.ItemID).name);
+                                            recived = true;
+                                            i2 -= 1;
+                                            break;
                                         }
-                                        if (!recived)
-                                        {
-                                            args.Player.SendErrorMessage("Error: You have no free inventory spaces!");
-                                            return;
-                                        }
+                                    }
+                                    if (!recived)
+                                    {
+                                        args.Player.SendErrorMessage("Error: You have no free inventory spaces!");
+                                        return;
                                     }
                                 }
                             }
-                            args.Player.SendInfoMessage("Info: All Items Recieved!");
                         }
-                        else
-                        {
-                            int id;
-                            if (!int.TryParse(args.Parameters[1], out id))
-                            {
-                                args.Player.SendErrorMessage("Error: Invalid ID Entered!");
-                                return;
-                            }
-                            OfferObj oObj = TradeList.OfferObjByID(id);
-                            if (oObj == null)
-                            {
-                                args.Player.SendErrorMessage("Error: Incorrect ID Entered!");
-                                return;
-                            }
-                            TradeObj tObj = TradeList.TradeObjByID(oObj.Type);
-                            if (tObj == null)
-                            {
-                                args.Player.SendErrorMessage("Error: Something is really wrong with the databse - transaction ID: {0} does not exist!", oObj.Type);
-                                return;
-                            }
-                            if (args.Player.Name != tObj.User)
-                            {
-                                args.Player.SendErrorMessage("Error: You are not the owner of the trade!");
-                                return;
-                            }
-                            //all checks finally passed
-                            bool recived = false;
-                            for (int i = 0; i < 48; i++)
-                            {
-                                if (args.TPlayer.inventory[i].netID == 0)
-                                {
-                                    //all conditions met, delete item and add offer entry.   
-                                    args.TPlayer.inventory[i].SetDefaults(oObj.ItemID);
-                                    args.TPlayer.inventory[i].stack = oObj.Stack;
-                                    NetMessage.SendData((int)PacketTypes.PlayerSlot, -1, -1, "", args.Player.Index, i);
-                                    NetMessage.SendData((int)PacketTypes.PlayerSlot, args.Player.Index, -1, "", args.Player.Index, i);
-                                    int tradeID = oObj.Type;
-                                    TradeList.processAccept(args.Player, oObj);
-                                    args.Player.SendInfoMessage("Sucess: Item Collected! You have Gained {0} of {1}.", oObj.Stack, TShock.Utils.GetItemById(oObj.ItemID).name);
-                                    recived = true;
-                                    //remove all other offers and return to owner
-                                    foreach(OfferObj obj in TradeList.offerObj)
-                                    {
-                                        if (obj.Type == tradeID)
-                                        {
-                                            TradeList.returnOffer(obj);
-                                            obj.Type = -1;
-                                        }
-                                    }
-                                    break;
-                                }
-                            }
-                            if (!recived)
-                            {
-                                args.Player.SendErrorMessage("Error: You have no free inventory spaces!");
-                                return;
-                            }
-                            return;
-                        }
+                        args.Player.SendInfoMessage("Info: All Items Recieved!");
+                        return;                        
                     }
                 }
                 else
                 {
                     args.Player.SendInfoMessage("Info: Type the below commands for more info");
                     args.Player.SendInfoMessage("Info: /trade add");
-                    args.Player.SendInfoMessage("Info: /trade offer");
                     args.Player.SendInfoMessage("Info: /trade accept");
                     args.Player.SendInfoMessage("Info: /trade list");
                     args.Player.SendInfoMessage("Info: /trade collect");
