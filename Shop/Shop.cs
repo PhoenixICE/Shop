@@ -156,6 +156,7 @@ namespace Shop
                 string Switch = args.Parameters[0].ToLower();
                 if (Switch == "add")
                 {
+                    if (args.Player.Group.HasPermission(""))
                     if (args.Parameters.Count != 4)
                     {
                         args.Player.SendInfoMessage("Info: /offer add (id) (item) (stack)");
@@ -336,7 +337,7 @@ namespace Shop
                 string Switch = args.Parameters[0].ToLower();
                 if (Switch == "add")
                 {
-                    if (!args.Player.Group.HasPermission("shop.trade.add"))
+                    if (!args.Player.Group.HasPermission("store.trade.add"))
                     {
                         args.Player.SendErrorMessage("Error: You do not have permission to add trades!");
                         return;
@@ -651,10 +652,11 @@ namespace Shop
 
         private void shopreload(CommandArgs args)
         {
+            ShopList = new ShopData(this);
             SetupConfig();
             return;
         }
-
+        //shop switch
         private void shop(CommandArgs args)
         {
             //main args switch
@@ -860,6 +862,10 @@ namespace Shop
 
         private Item getItem(TSPlayer player, string itemNameOrId, int stack)
         {
+            if (stack < 1)
+            {
+
+            }
             Item item = new Item();
             List<Item> matchedItems = TShock.Utils.GetItemByIdOrName(itemNameOrId);
             if (matchedItems == null || matchedItems.Count == 0)
