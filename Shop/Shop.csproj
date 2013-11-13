@@ -62,6 +62,7 @@
     <Compile Include="ShopConfig.cs" />
     <Compile Include="ShopData.cs" />
     <Compile Include="TradeData.cs" />
+    <Compile Include="ShopObj.cs" />
     <Compile Include="TradeObj.cs" />
     <Compile Include="OfferObj.cs" />
   </ItemGroup>

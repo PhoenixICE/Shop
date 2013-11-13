@@ -658,30 +658,43 @@ namespace Shop
         private void shop(CommandArgs args)
         {
             //main args switch
-            string Switch = args.Parameters[0].ToLower();
-            if (Switch == "buy")
+            if (args.Parameters.Count() == 0)
             {
-                if (!args.Player.Group.HasPermission("store.shop.buy"))
+                //Display Help
+                args.Player.SendInfoMessage("Info: /shop buy (item) [amount]");
+                return;
+            }
+            try
+            {
+                string Switch = args.Parameters[0].ToLower();
+                if (Switch == "buy")
                 {
-                    args.Player.SendErrorMessage("Error: You do not have permission to buy items!");
-                    return;
+                    if (!args.Player.Group.HasPermission("store.shop.buy"))
+                    {
+                        args.Player.SendErrorMessage("Error: You do not have permission to buy items!");
+                        return;
+                    }
+                    //display help as no item specificed | or too many params
+                    if (args.Parameters.Count == 1 || args.Parameters.Count >= 4)
+                    {
+                        args.Player.SendInfoMessage("Info: /shop buy (item) [amount]");
+                        return;
+                    }
+                    //purchase without stack specified
+                    if (args.Parameters.Count == 2)
+                    {
+                        BuyItem(args.Player, args.Parameters[1]);
+                    }
+                    //purchase with stack specified
+                    if (args.Parameters.Count == 3)
+                    {
+                        BuyItem(args.Player, args.Parameters[1], Convert.ToInt32(args.Parameters[2]));
+                    }
                 }
-                //display help as no item specificed | or too many params
-                if (args.Parameters.Count == 1 || args.Parameters.Count >= 4)
-                {
-                    args.Player.SendInfoMessage("Info: /shop {buy} {item} [amount]");
-                    return;
-                }
-                //purchase without stack specified
-                if (args.Parameters.Count == 2)
-                {
-                    BuyItem(args.Player, args.Parameters[1]);
-                }
-                //purchase with stack specified
-                if (args.Parameters.Count == 3)
-                {
-                    BuyItem(args.Player, args.Parameters[1], Convert.ToInt32(args.Parameters[2]));
-                }
+            }
+            catch (Exception e)
+            {
+                args.Player.SendInfoMessage("{0}", e);
             }
         }
 
@@ -696,13 +709,13 @@ namespace Shop
             }
 
             //find item value
-            int index = ShopList.name.IndexOf(item.name);            
-            int cost = ShopList.price[index];
+            ShopObj obj = ShopList.FindShopObjbyItemName(item.name);
+            int cost = obj.Price;
 
             //check if onsale if yes lower cost amount
-            if (ShopList.onsale[index] != "")
+            if (obj.Onsale.Count != 0)
             {
-                foreach (string str in ShopList.onsale[index].Split(new char[] { ',' }))
+                foreach (string str in obj.Onsale)
                 {
                     switch (str.ToLower())
                     {
@@ -723,14 +736,14 @@ namespace Shop
             }
 
             //Check if in stock
-            if (ShopList.stock[index] == 0)
+            if (obj.Stock == 0)
             {
                 player.SendErrorMessage("Error: No current stock for {0}", item.name);
                 return;
             }
 
             //Check if has locked down group permissions
-            if (!groupAllowed(player, index))
+            if (!groupAllowed(player, obj.Group))
             {
                 player.SendErrorMessage("Error: You do not have permissions to purchase {0}", item.name);
                 return;
@@ -745,7 +758,7 @@ namespace Shop
                 return;
             }
 
-            if (!inRegion(player, index))
+            if (!inRegion(player, obj.Region))
             {
                 player.SendErrorMessage("Error: You are currently not in range of the shop");
                 return;
@@ -756,12 +769,22 @@ namespace Shop
             {
                 //All checks completed
                 //Remove money and place in worldaccount
-                Wolfje.Plugins.SEconomy.SEconomyPlugin.WorldAccount.TransferToAsync(account.BankAccount, -cost, Wolfje.Plugins.SEconomy.Journal.BankAccountTransferOptions.IsPayment, string.Format("Successfully Paid: {0}", cost), string.Format("Shop: {0} purhcase {1} stack of {2}", player.Name, stack, item.name));
+                if (Wolfje.Plugins.SEconomy.SEconomyPlugin.GetEconomyPlayerSafe(player.Index).BankAccount.Balance >= cost)
+                {
+                    Wolfje.Plugins.SEconomy.SEconomyPlugin.WorldAccount.TransferToAsync(account.BankAccount, -cost, Wolfje.Plugins.SEconomy.Journal.BankAccountTransferOptions.IsPayment | BankAccountTransferOptions.AnnounceToReceiver, obj.Item, string.Format("Shop: {0} purhcase {1} stack of {2}", player.Name, stack, item.name));
+                }
+                else
+                {
+                    player.SendErrorMessage("Error: You do not have enough to Purchase this item!");
+                    player.SendErrorMessage("Required: {0}!", Wolfje.Plugins.SEconomy.Money.Parse(cost.ToString()));
+                    return;
+                }
             }
-            if (ShopList.stock[index] != -1)
+            else
             {
-                ShopList.stock[index] -= 1;
+                return;
             }
+            ShopList.lowerStock(obj);
         }
 
         private Boolean freeSlots(TSPlayer player, Item item, int itemAmount)
@@ -781,43 +804,47 @@ namespace Shop
             }
         }
 
-        private Boolean inRegion(TSPlayer player, int index)
+        private Boolean inRegion(TSPlayer player, string regions)
         {
-            if (ShopList.region[index] != null)
+            if (regions != "")
             {
-                foreach (Region region in ShopList.region[index])
+                foreach (string region in regions.Split(new Char[] { ',' }))
                 {
-                    if (region.InArea(new Rectangle((int)(player.TileX), (int)(player.TileY), player.TPlayer.width, player.TPlayer.height)))
+                    try
                     {
-                        return true;
+                        if (TShock.Regions.GetRegionByName(region).InArea(new Rectangle((int)(player.TileX), (int)(player.TileY), player.TPlayer.width, player.TPlayer.height)))
+                        {
+                            return true;
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Log.ConsoleError("Shop Plugin: Error cannot locate region - {0}", region);
                     }
                 }
-                return false;
             }
             return true;
         }
 
-        private Boolean groupAllowed(TSPlayer player, int index)
+        private Boolean groupAllowed(TSPlayer player, string groups)
         {
-            if (ShopList.group[index] != null)
-            {
+            if (groups != "")
+            {                
                 var cur = player.Group;
-                var traversed = new List<Group>();
-                var allowedGroups = ShopList.group[index];
-                while (cur != null)
+                foreach (string group in groups.Split(new Char[] { ',' }))
                 {
-                    if (allowedGroups.Contains(cur))
+                    try
                     {
-                        return true;
+                        if (player.Group.HasPermission(TShock.Groups.GetGroupByName(group).Name))
+                        {
+                            return true;
+                        }
                     }
-                    if (traversed.Contains(cur))
+                    catch (Exception e)
                     {
-                        throw new InvalidOperationException("Infinite group parenting ({0})".SFormat(cur.Name));
+                        Log.ConsoleError("Shop Plugin: Error cannot locate group - {0}", group);
                     }
-                    traversed.Add(cur);
-                    cur = cur.Parent;
                 }
-                return false;
             }
             return true;
         }

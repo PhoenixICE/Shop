@@ -100,7 +100,10 @@ namespace Shop
                 while (result.Read())
                 {
                     this.tradeObj.Add(new TradeObj(result.Get<int>("ID"), result.Get<string>("User"), result.Get<int>("ItemID"), result.Get<int>("Stack"), result.Get<int>("WItemID"), result.Get<int>("WStack")));
-                    tradeID = result.Get<int>("ID") + 1;
+                    if (tradeID <= result.Get<int>("ID"))
+                    {
+                        tradeID = result.Get<int>("ID") + 1;
+                    }
                 }
             }
             result.Dispose();
@@ -113,7 +116,10 @@ namespace Shop
                 while (result.Read())
                 {
                     this.offerObj.Add(new OfferObj(result.Get<int>("ID"), result.Get<string>("User"), result.Get<int>("ItemID"), result.Get<int>("Stack"), result.Get<int>("TradeID")));
-                    offerID = result.Get<int>("ID") + 1;
+                    if (offerID <= result.Get<int>("ID"))
+                    {
+                        offerID = result.Get<int>("ID") + 1;
+                    }
                 }
             }
             result.Dispose();

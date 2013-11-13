@@ -12,43 +12,40 @@ namespace Shop
     internal class ShopData
     {
         private Shop main;
-        public List<string> name = new List<string>();
-        public List<int> price = new List<int>();
-        public List<List<Region>> region = new List<List<Region>>();
-        public List<List<Group>> group = new List<List<Group>>();
-        public List<int> restockTimer = new List<int>();
-        public List<int> stock = new List<int>();
-        public List<string> onsale = new List<string>();
+        private List<ShopObj> Shoplist = new List<ShopObj>();
+        
+        public ShopObj FindShopObjbyItemName(string name)
+        {
+            foreach (ShopObj obj in Shoplist)
+            {
+                if (TShock.Utils.GetItemByName(obj.Item)[0].name == name)
+                {
+                    return obj;
+                }
+            }
+            return null;
+        }
+
+        public void lowerStock(ShopObj obj)
+        {
+            if (obj.Stock <= 0)
+            {
+                obj.Stock -= 1;
+                main.Database.Query("UPDATE storeshop SET stock = @0 WHERE name = @1 AND price = @2", obj.Stock, obj.Item, obj.Price);
+            }
+        }
 
         public void updateShopData()
         {
             try
             {
-                QueryResult result = main.Database.QueryReader("SELECT * FROM storeshop");
-                using (result)
+                using (QueryResult result = main.Database.QueryReader("SELECT * FROM storeshop"))
                 {
                     while (result.Read())
                     {
-                        this.name.Add(result.Get<string>("name"));
-                        this.price.Add(result.Get<int>("price"));
-                        List<Region> tempList = new List<Region>();
-                        foreach (string str in result.Get<string>("region").Split(new Char[] { ',' }).ToList())
-                        {
-                            tempList.Add(TShock.Regions.GetRegionByName(str));
-                        }
-                        this.region.Add(tempList);
-                        List<Group> tempList2 = new List<Group>();
-                        foreach (string str in result.Get<string>("groupname").Split(new Char[] { ',' }).ToList())
-                        {
-                            tempList2.Add(TShock.Groups.GetGroupByName(str));
-                        }
-                        this.group.Add(tempList2);
-                        this.restockTimer.Add(result.Get<int>("restockTimer"));
-                        this.stock.Add(result.Get<int>("stock"));
-                        this.onsale.Add(result.Get<string>("onsale"));
+                        this.Shoplist.Add(new ShopObj(result.Get<string>("name"), result.Get<int>("price"), result.Get<string>("region"), result.Get<string>("groupname"), result.Get<int>("restockTimer"), result.Get<int>("stock"), result.Get<string>("onsale").Split(new Char[] { ',' }).ToList()));
                     }
                 }
-                result.Dispose();
             }
             catch (Exception e)
             {
