@@ -694,7 +694,7 @@ namespace Shop
             }
             catch (Exception e)
             {
-                args.Player.SendInfoMessage("{0}", e);
+                Log.ConsoleError(e.ToString());
             }
         }
 
@@ -705,11 +705,16 @@ namespace Shop
             //if null then exit
             if (item == null)
             {
+                player.SendErrorMessage("Error: Incorrect Name or ID for Item - {0}", itemNameOrId);
                 return;
             }
-
             //find item value
             ShopObj obj = ShopList.FindShopObjbyItemName(item.name);
+            if (obj == null)
+            {
+                player.SendErrorMessage("Error: This item cannot be Purchased! - {0}", item.name);
+                return;
+            }
             int cost = obj.Price * stack;
 
             //check if onsale if yes lower cost amount
@@ -857,7 +862,7 @@ namespace Shop
         {
             Item item = new Item();
             List<Item> matchedItems = TShock.Utils.GetItemByIdOrName(itemNameOrId);
-            if (matchedItems.Count == 0)
+            if (matchedItems == null || matchedItems.Count == 0)
             {
                 player.SendErrorMessage("Error: Invalid item type!");
                 return null;
