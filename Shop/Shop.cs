@@ -739,6 +739,28 @@ namespace Shop
                 player.SendErrorMessage("Error: This item cannot be Purchased! - {0}", item.name);
                 return;
             }
+
+            //Check if in stock
+            if (obj.Stock == 0)
+            {
+                player.SendErrorMessage("Error: No current stock for {0}", item.name);
+                return;
+            }
+
+            //Check if has locked down group permissions
+            if (!groupAllowed(player, obj.Group))
+            {
+                player.SendErrorMessage("Error: You do not have permissions to purchase {0}", item.name);
+                return;
+            }
+
+            //Check if within region
+            if (!inRegion(player, obj.Region))
+            {
+                player.SendErrorMessage("Error: You are currently not in range of the shop");
+                return;
+            }
+
             int cost = obj.Price * stack;
 
             //check if onsale if yes lower cost amount
@@ -768,32 +790,13 @@ namespace Shop
                 }
             }
 
-            //Check if in stock
-            if (obj.Stock == 0)
-            {
-                player.SendErrorMessage("Error: No current stock for {0}", item.name);
-                return;
-            }
-
-            //Check if has locked down group permissions
-            if (!groupAllowed(player, obj.Group))
-            {
-                player.SendErrorMessage("Error: You do not have permissions to purchase {0}", item.name);
-                return;
-            }
-
             //Check if player has enough money to purchase the item
-            var account = Wolfje.Plugins.SEconomy.SEconomyPlugin.GetEconomyPlayerSafe(player.Index);
+            EconomyPlayer account = Wolfje.Plugins.SEconomy.SEconomyPlugin.GetEconomyPlayerSafe(player.Index);
             //Make sure balance of user is greater then group cost
             if (account.BankAccount.Balance < cost)
             {
-                player.SendErrorMessage("Error: You need {1} {0} to purchase item(s)", Wolfje.Plugins.SEconomy.SEconomyPlugin.Configuration.MoneyConfiguration.MoneyName, cost);
-                return;
-            }
-
-            if (!inRegion(player, obj.Region))
-            {
-                player.SendErrorMessage("Error: You are currently not in range of the shop");
+                player.SendErrorMessage("Error: You do not have enough to Purchase this item!");
+                player.SendErrorMessage("Required: {0}!", Wolfje.Plugins.SEconomy.Money.Parse(cost.ToString()));
                 return;
             }
 
@@ -802,16 +805,7 @@ namespace Shop
             {
                 //All checks completed
                 //Remove money and place in worldaccount
-                if (Wolfje.Plugins.SEconomy.SEconomyPlugin.GetEconomyPlayerSafe(player.Index).BankAccount.Balance >= cost)
-                {
-                    Wolfje.Plugins.SEconomy.SEconomyPlugin.WorldAccount.TransferToAsync(account.BankAccount, -cost, Wolfje.Plugins.SEconomy.Journal.BankAccountTransferOptions.IsPayment | BankAccountTransferOptions.AnnounceToReceiver, obj.Item, string.Format("Shop: {0} purhcase {1} stack of {2}", player.Name, stack, item.name));
-                }
-                else
-                {
-                    player.SendErrorMessage("Error: You do not have enough to Purchase this item!");
-                    player.SendErrorMessage("Required: {0}!", Wolfje.Plugins.SEconomy.Money.Parse(cost.ToString()));
-                    return;
-                }
+                Wolfje.Plugins.SEconomy.SEconomyPlugin.WorldAccount.TransferToAsync(account.BankAccount, -cost, Wolfje.Plugins.SEconomy.Journal.BankAccountTransferOptions.IsPayment | BankAccountTransferOptions.AnnounceToReceiver, obj.Item, string.Format("Shop: {0} purhcase {1} stack of {2}", player.Name, stack, item.name));
             }
             else
             {
@@ -828,11 +822,12 @@ namespace Shop
                 {
                     return true;
                 }
+                player.SendErrorMessage("Error: An unknown error has occured - this code should not be reachable!");
                 return false;
             }
             else
             {
-                player.SendErrorMessage("Your inventory seems full.");
+                player.SendErrorMessage("Error: Your inventory seems to be full!");
                 return false;
             }
         }
