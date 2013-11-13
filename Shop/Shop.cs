@@ -158,7 +158,7 @@ namespace Shop
                 {
                     if (args.Parameters.Count != 4)
                     {
-                        args.Player.SendInfoMessage("Info: /offer add {id} {item} {stack}");
+                        args.Player.SendInfoMessage("Info: /offer add (id) (item) (stack)");
                         args.Player.SendInfoMessage("Info: use /trade list, to find lists of IDs to offer on");
                         return;
                     }
@@ -204,12 +204,12 @@ namespace Shop
                         return;
                     }
                 }
-                //offer accept {id}
+                //offer accept (id)
                 else if (Switch == "accept")
                 {
                     if (args.Parameters.Count != 2)
                     {
-                        args.Player.SendInfoMessage("Info: /offer accept {id}");
+                        args.Player.SendInfoMessage("Info: /offer accept (id)");
                         args.Player.SendInfoMessage("Info: use /trade list, to find lists of IDs to offer on");
                         return;
                     }
@@ -344,7 +344,7 @@ namespace Shop
                     //display help as no item specificed | or too many params
                     if (args.Parameters.Count == 1 || args.Parameters.Count >= 6)
                     {
-                        args.Player.SendInfoMessage("Info: /trade add {item} {amount} [item] [amount]");
+                        args.Player.SendInfoMessage("Info: /trade add (item) (amount) [item] [amount]");
                         args.Player.SendInfoMessage("Info: Set the item you wish to trade and the amount of them, optionally set the item you wish to trade for and the amount of them");
                         return;
                     }
@@ -354,7 +354,7 @@ namespace Shop
                         int stack;
                         if (!int.TryParse(args.Parameters[2], out stack))
                         {
-                            args.Player.SendInfoMessage("Info: /trade add {item} {amount} [item] [amount]");
+                            args.Player.SendInfoMessage("Info: /trade add (item) (amount) [item] [amount]");
                             args.Player.SendInfoMessage("Info: Set the item you wish to trade and the amount of them, optionally set the item you wish to trade for and the amount of them");
                             return;
                         }
@@ -402,7 +402,7 @@ namespace Shop
                         int stack;
                         if (!int.TryParse(args.Parameters[2], out stack))
                         {
-                            args.Player.SendInfoMessage("Info: /trade add {item} {amount} [item] [amount]");
+                            args.Player.SendInfoMessage("Info: /trade add (item) (amount) [item] [amount]");
                             args.Player.SendInfoMessage("Info: Set the item you wish to trade and the amount of them, optionally set the item you wish to trade for and the amount of them");
                         }
                         if (stack == 0)
@@ -414,7 +414,7 @@ namespace Shop
                         int wstack;
                         if (!Int32.TryParse(args.Parameters[4], out wstack))
                         {
-                            args.Player.SendInfoMessage("Info: /trade add {item} {amount} [item] [amount]");
+                            args.Player.SendInfoMessage("Info: /trade add (item) (amount) [item] [amount]");
                             args.Player.SendInfoMessage("Info: Set the item you wish to trade and the amount of them, optionally set the item you wish to trade for and the amount of them");
                         }
                         if (wstack == 0)
@@ -495,7 +495,7 @@ namespace Shop
                     //display help as no item specificed | or too many params
                     if (args.Parameters.Count == 1 || args.Parameters.Count >= 3)
                     {
-                        args.Player.SendInfoMessage("Info: /trade accept {id}");
+                        args.Player.SendInfoMessage("Info: /trade accept (id)");
                         args.Player.SendInfoMessage("Info: use /trade list, to accept lists of trades");
                         return;
                     }
@@ -710,7 +710,7 @@ namespace Shop
 
             //find item value
             ShopObj obj = ShopList.FindShopObjbyItemName(item.name);
-            int cost = obj.Price;
+            int cost = obj.Price * stack;
 
             //check if onsale if yes lower cost amount
             if (obj.Onsale.Count != 0)
@@ -720,16 +720,20 @@ namespace Shop
                     switch (str.ToLower())
                     {
                         case "bloodmoon":
-                            cost = (int)(cost * ((100 - configObj.bloodmoon)/100));
+                            if (Main.bloodMoon)
+                                cost = (int)(cost * ((100 - configObj.bloodmoon)/100));
                             break;
                         case "eclipse":
-                            cost = (int)(cost * ((100 - configObj.eclipse) / 100));
+                            if (Main.eclipse)
+                                cost = (int)(cost * ((100 - configObj.eclipse) / 100));
                             break;
                         case "night":
-                            cost = (int)(cost * ((100 - configObj.night)/100));
+                            if (!Main.dayTime)
+                                cost = (int)(cost * ((100 - configObj.night)/100));
                             break;
                         case "day":
-                            cost = (int)(cost * ((100 - configObj.day)/100));
+                            if (Main.dayTime)
+                                cost = (int)(cost * ((100 - configObj.day)/100));
                             break;
                     }
                 }
