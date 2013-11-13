@@ -14,13 +14,13 @@ namespace Shop
     {
         public string Item;
         public int Price;
-        public string Region;
-        public string Group;
+        public List<string> Region;
+        public List<string> Group;
         public int RestockTimer;
         public int Stock;
         public List<string> Onsale;
 
-        public ShopObj(string item, int price, string regions, string groups, int restockTimer, int stock, List<string> onsales)
+        public ShopObj(string item, int price, List<string> regions, List<string> groups, int restockTimer, int stock, List<string> onsales)
         {
             this.Item = item;
             this.Price = price;

@@ -52,7 +52,7 @@ namespace Shop
 
         public override Version Version
         {
-            get { return new Version("1.0"); }
+            get { return new Version("1.1"); }
         }
         public Shop(Main game)
             : base(game)
@@ -63,6 +63,7 @@ namespace Shop
             ServerApi.Hooks.GameInitialize.Register(this, OnInitialize);
         }
 
+       
         protected override void Dispose(bool disposing)
         {
             if (disposing)
@@ -108,12 +109,12 @@ namespace Shop
             SqlTableCreator sqlcreator = new SqlTableCreator(Database, Database.GetSqlType() == SqlType.Sqlite ? (IQueryBuilder)new SqliteQueryCreator() : new MysqlQueryCreator());
             sqlcreator.EnsureExists(new SqlTable("storeshop",
                 new SqlColumn("name", MySqlDbType.VarChar) { Primary = true, Length = 30 },
-                new SqlColumn("price", MySqlDbType.Int32),
-                new SqlColumn("region", MySqlDbType.VarChar) { Length = 30 },
-                new SqlColumn("groupname", MySqlDbType.VarChar) { Length = 30 },
-                new SqlColumn("restockTimer", MySqlDbType.Int32),
-                new SqlColumn("stock", MySqlDbType.Int32),
-                new SqlColumn("onsale", MySqlDbType.VarChar) { Length = 30 }
+                new SqlColumn("price", MySqlDbType.Int32) { DefaultValue = "1", NotNull = true },
+                new SqlColumn("region", MySqlDbType.VarChar) { DefaultValue = "", Length = 30, NotNull = true },
+                new SqlColumn("groupname", MySqlDbType.VarChar) { DefaultValue = "", Length = 30, NotNull = true },
+                new SqlColumn("restockTimer", MySqlDbType.Int32) { DefaultValue = "-1", NotNull = true },
+                new SqlColumn("stock", MySqlDbType.Int32) { DefaultValue = "-1", NotNull = true },
+                new SqlColumn("onsale", MySqlDbType.VarChar) { DefaultValue = "", Length = 30, NotNull = true }
                 ));
             sqlcreator.EnsureExists(new SqlTable("storetrade",
                 new SqlColumn("ID", MySqlDbType.VarChar) { Primary = true, Length = 30 },
@@ -355,29 +356,37 @@ namespace Shop
                         int stack;
                         if (!int.TryParse(args.Parameters[2], out stack))
                         {
-                            args.Player.SendInfoMessage("Info: /trade add (item) (amount) [item] [amount]");
-                            args.Player.SendInfoMessage("Info: Set the item you wish to trade and the amount of them, optionally set the item you wish to trade for and the amount of them");
+                            args.Player.SendErrorMessage("Error: Stack size must be numeric!");
+                            args.Player.SendErrorMessage("Error: You have entered: {0}", args.Parameters[2]);
                             return;
                         }
-                        if (stack == 0)
+                        if (stack <= 0)
                         {
-                            args.Player.SendErrorMessage("Error: Can't have stack size of zero");
+                            args.Player.SendErrorMessage("Error: Can't have stack size of zero or lower!");
                             return;
                         }
                         Item item = getItem(args.Player, args.Parameters[1], 1);
                         if (item == null)
                         {
-                            args.Player.SendErrorMessage("Error: Incorrect item name or ID, please use quotes if the item has a space in it");
+                            args.Player.SendErrorMessage("Error: Incorrect item name or ID, please use quotes if the item has a space in it!");
+                            args.Player.SendErrorMessage("Error: You have entered: {0}", args.Parameters[1]);
                             return;
                         }
                         for (int i = 0; i < 48; i++)
                         {
                             if (args.TPlayer.inventory[i].netID == item.netID)
                             {
-                                if (args.TPlayer.inventory[i].stack == stack)
+                                if (args.TPlayer.inventory[i].stack >= stack)
                                 {
-                                    //all conditions met, delete item and add offer entry.   
-                                    args.TPlayer.inventory[i].SetDefaults(0);
+                                    //all conditions met, delete item and add offer entry.
+                                    if (args.TPlayer.inventory[i].stack == stack)
+                                    {
+                                        args.TPlayer.inventory[i].SetDefaults(0);
+                                    }
+                                    else if(args.TPlayer.inventory[i].stack >= stack)
+                                    {
+                                        args.TPlayer.inventory[i].stack -= stack;
+                                    }
                                     NetMessage.SendData((int)PacketTypes.PlayerSlot, -1, -1, "", args.Player.Index, i);
                                     NetMessage.SendData((int)PacketTypes.PlayerSlot, args.Player.Index, -1, "", args.Player.Index, i);
                                     AddTrade(args.Player, item, stack);
@@ -387,7 +396,7 @@ namespace Shop
                                 else
                                 {
                                     //failed cause not enough stacks from player
-                                    args.Player.SendErrorMessage("Error: Offer could not be completed, you have offered more stacks then you have!");
+                                    args.Player.SendErrorMessage("Error: Adding trade not be completed, you have offered more stacks than you have!");
                                     return;
                                 }
                             }
@@ -406,9 +415,9 @@ namespace Shop
                             args.Player.SendInfoMessage("Info: /trade add (item) (amount) [item] [amount]");
                             args.Player.SendInfoMessage("Info: Set the item you wish to trade and the amount of them, optionally set the item you wish to trade for and the amount of them");
                         }
-                        if (stack == 0)
+                        if (stack <= 0)
                         {
-                            args.Player.SendErrorMessage("Error: Can't have stack size of zero");
+                            args.Player.SendErrorMessage("Error: Can't have stack size of zero or less!");
                             return;
                         }
                         Item item = getItem(args.Player, args.Parameters[1], 1);
@@ -416,7 +425,7 @@ namespace Shop
                         if (!Int32.TryParse(args.Parameters[4], out wstack))
                         {
                             args.Player.SendInfoMessage("Info: /trade add (item) (amount) [item] [amount]");
-                            args.Player.SendInfoMessage("Info: Set the item you wish to trade and the amount of them, optionally set the item you wish to trade for and the amount of them");
+                            args.Player.SendInfoMessage("Info: Set the item you wish to trade and the amount of them, optionally set the item you wish to trade for and the amount of them!");
                         }
                         if (wstack == 0)
                         {
@@ -482,7 +491,8 @@ namespace Shop
                                 break;
                             args.Player.SendInfoMessage("{0} - {1} - {2}:{3} - {4}:{5}", TradeList.tradeObj[i].ID, TradeList.tradeObj[i].User, TShock.Utils.GetItemById(TradeList.tradeObj[i].ItemID).name, TradeList.tradeObj[i].Stack, TShock.Utils.GetItemById(TradeList.tradeObj[i].WItemID).name, TradeList.tradeObj[i].WStack);
                         }
-                        args.Player.SendInfoMessage("/trade list {0}", (page / 9) + 1);
+                        if (page < TradeList.tradeObj.Count())
+                            args.Player.SendInfoMessage("/trade list {0}", (page / 9) + 1);
                         return;
                     }
                 }
@@ -690,7 +700,20 @@ namespace Shop
                     //purchase with stack specified
                     if (args.Parameters.Count == 3)
                     {
-                        BuyItem(args.Player, args.Parameters[1], Convert.ToInt32(args.Parameters[2]));
+                        int stack;
+                        if (!int.TryParse(args.Parameters[2], out stack))
+                        {
+                            args.Player.SendErrorMessage("Error: Invalid stack size!");
+                            args.Player.SendErrorMessage("Error: You have entered {0}", args.Parameters[2]);
+                            return;
+                        }
+                        if (stack < 1)
+                        {
+                            args.Player.SendErrorMessage("Error: Cannot have a stack size that is zero or less!");
+                            args.Player.SendErrorMessage("Error: You have entered {0}", stack);
+                            return;
+                        }
+                        BuyItem(args.Player, args.Parameters[1], stack);
                     }
                 }
             }
@@ -707,7 +730,6 @@ namespace Shop
             //if null then exit
             if (item == null)
             {
-                player.SendErrorMessage("Error: Incorrect Name or ID for Item - {0}", itemNameOrId);
                 return;
             }
             //find item value
@@ -815,11 +837,11 @@ namespace Shop
             }
         }
 
-        private Boolean inRegion(TSPlayer player, string regions)
+        private Boolean inRegion(TSPlayer player, List<string> regions)
         {
-            if (regions != "")
+            if (regions.Count() != 0)
             {
-                foreach (string region in regions.Split(new Char[] { ',' }))
+                foreach (string region in regions)
                 {
                     try
                     {
@@ -828,21 +850,26 @@ namespace Shop
                             return true;
                         }
                     }
-                    catch (Exception e)
+                    catch (Exception)
                     {
                         Log.ConsoleError("Shop Plugin: Error cannot locate region - {0}", region);
+                        return false;
                     }
                 }
             }
-            return true;
+            else
+            {
+                return true;
+            }
+            return false;
         }
 
-        private Boolean groupAllowed(TSPlayer player, string groups)
+        private Boolean groupAllowed(TSPlayer player, List<string> groups)
         {
-            if (groups != "")
+            if (groups.Count() != 0)
             {                
                 var cur = player.Group;
-                foreach (string group in groups.Split(new Char[] { ',' }))
+                foreach (string group in groups)
                 {
                     try
                     {
@@ -851,21 +878,22 @@ namespace Shop
                             return true;
                         }
                     }
-                    catch (Exception e)
+                    catch (Exception)
                     {
                         Log.ConsoleError("Shop Plugin: Error cannot locate group - {0}", group);
+                        return false;
                     }
                 }
             }
-            return true;
+            else
+            {
+                return true;
+            }
+            return false;
         }
 
         private Item getItem(TSPlayer player, string itemNameOrId, int stack)
         {
-            if (stack < 1)
-            {
-
-            }
             Item item = new Item();
             List<Item> matchedItems = TShock.Utils.GetItemByIdOrName(itemNameOrId);
             if (matchedItems == null || matchedItems.Count == 0)

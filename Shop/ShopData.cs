@@ -20,7 +20,7 @@ namespace Shop
         {
             foreach (ShopObj obj in Shoplist)
             {
-                if (TShock.Utils.GetItemByName(obj.Item)[0].name == name)
+                if (obj.Item.ToLower() == name.ToLower())
                 {
                     return obj;
                 }
@@ -45,7 +45,7 @@ namespace Shop
                 {
                     while (result.Read())
                     {
-                        this.Shoplist.Add(new ShopObj(result.Get<string>("name"), result.Get<int>("price"), result.Get<string>("region"), result.Get<string>("groupname"), result.Get<int>("restockTimer"), result.Get<int>("stock"), result.Get<string>("onsale").Split(new Char[] { ',' }).ToList()));
+                        this.Shoplist.Add(new ShopObj(result.Get<string>("name"), result.Get<int>("price"), result.Get<string>("region").Split(new Char[] { ',' }).ToList(), result.Get<string>("groupname").Split(new Char[] { ',' }).ToList(), result.Get<int>("restockTimer"), result.Get<int>("stock"), result.Get<string>("onsale").Split(new Char[] { ',' }).ToList()));
                     }
                 }
             }
