@@ -910,7 +910,7 @@ namespace Shop
             if (account.BankAccount.Balance < cost)
             {
                 player.SendErrorMessage("Error: You do not have enough to Purchase this item!");
-                player.SendErrorMessage("Required: {0}!", Wolfje.Plugins.SEconomy.Money.Parse(cost.ToString()));
+                player.SendErrorMessage("Required: {0}!", ((Money)cost).ToLongString());
                 return;
             }
 
@@ -919,7 +919,7 @@ namespace Shop
             {
                 //All checks completed
                 //Remove money and place in worldaccount
-                Wolfje.Plugins.SEconomy.SEconomyPlugin.WorldAccount.TransferToAsync(account.BankAccount, -cost, Wolfje.Plugins.SEconomy.Journal.BankAccountTransferOptions.IsPayment | BankAccountTransferOptions.AnnounceToReceiver, obj.Item, string.Format("Shop: {0} purhcase {1} stack of {2}", player.Name, stack, item.name));
+                account.BankAccount.TransferToAsync(SEconomyPlugin.WorldAccount, cost, Wolfje.Plugins.SEconomy.Journal.BankAccountTransferOptions.IsPayment, obj.Item, string.Format("Shop: {0} purhcase {1} stack of {2}", player.Name, stack, item.name));
             }
             else
             {
