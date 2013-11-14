@@ -44,7 +44,13 @@ namespace Shop
                 {
                     while (result.Read())
                     {
-                        this.Shoplist.Add(new ShopObj(result.Get<string>("name"), result.Get<int>("price"), result.Get<string>("region").Split(new Char[] { ',' }).ToList(), result.Get<string>("groupname").Split(new Char[] { ',' }).ToList(), result.Get<int>("restockTimer"), result.Get<int>("stock"), result.Get<string>("onsale").Split(new Char[] { ',' }).ToList(), result.Get<int>("maxstacks")));
+                        List<string> strgrouplist = result.Get<string>("groupname").Split(',').ToList();
+                        if (strgrouplist.Count() == 1 && strgrouplist[0] == "")
+                            strgrouplist = new List<string>();
+                        List<string> strregionlist = result.Get<string>("region").Split(',').ToList();
+                        if (strregionlist.Count() == 1 && strregionlist[0] == "")
+                            strregionlist = new List<string>();
+                        this.Shoplist.Add(new ShopObj(result.Get<string>("name"), result.Get<int>("price"), strregionlist, strgrouplist, result.Get<int>("restockTimer"), result.Get<int>("stock"), result.Get<string>("onsale").Split(',').ToList(), result.Get<int>("maxstock")));
                     }
                 }
             }

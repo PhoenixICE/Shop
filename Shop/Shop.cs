@@ -52,7 +52,7 @@ namespace Shop
 
         public override Version Version
         {
-            get { return new Version("1.1"); }
+            get { return new Version("1.2"); }
         }
         public Shop(Main game)
             : base(game)
@@ -75,8 +75,6 @@ namespace Shop
 
         private void OnInitialize(EventArgs args)
         {
-            configObj = new ShopConfig();
-            SetupConfig();
             switch (TShock.Config.StorageType.ToLower())
             {
                 case "mysql":
@@ -134,7 +132,8 @@ namespace Shop
 
             ShopList = new ShopData(this);
             TradeList = new TradeData(this);
-
+            configObj = new ShopConfig();
+            SetupConfig();
             Commands.ChatCommands.Add(new Command("store.shop", shop, "shop"));
             Commands.ChatCommands.Add(new Command("store.admin", shopreload, "reloadstore"));
             Commands.ChatCommands.Add(new Command("store.trade", trade, "trade"));
@@ -327,6 +326,7 @@ namespace Shop
                 {
                     args.Player.SendInfoMessage("Info: Type the below commands for more info");
                     args.Player.SendInfoMessage("Info: /trade add");
+                    args.Player.SendInfoMessage("Info: /trade exchange");
                     args.Player.SendInfoMessage("Info: /trade offer");
                     args.Player.SendInfoMessage("Info: /trade accept");
                     args.Player.SendInfoMessage("Info: /trade list");
@@ -336,7 +336,23 @@ namespace Shop
                 }
                 //main args switch
                 string Switch = args.Parameters[0].ToLower();
-                if (Switch == "add")
+                if (Switch == "exchange")
+                {
+                    if (!args.Player.Group.HasPermission("store.trade.exchange"))
+                    {
+                        args.Player.SendErrorMessage("Error: You do not have permission to add exchanges!");
+                        return;
+                    }
+                    //display help as no item specificed | or too many params
+                    if (args.Parameters.Count == 1 || args.Parameters.Count > 4)
+                    {
+                        args.Player.SendInfoMessage("Info: /trade add (item) (amount) ({0})", Wolfje.Plugins.SEconomy.Money.CurrencyName);
+                        args.Player.SendInfoMessage("Info: Set the item you wish to trade, the amount of them and the amount of {0} you wish to exchange for.", Wolfje.Plugins.SEconomy.Money.CurrencyName);
+                        return;
+                    }
+
+                }
+                else if (Switch == "add")
                 {
                     if (!args.Player.Group.HasPermission("store.trade.add"))
                     {
@@ -723,7 +739,7 @@ namespace Shop
                         BuyItem(args.Player, args.Parameters[1], stack);
                     }
                 }
-                else if(Switch == "Search")
+                else if(Switch == "search")
                 {
                     //display help as no item specificed | or too many params
                     if (args.Parameters.Count == 1 || args.Parameters.Count > 2)
@@ -742,7 +758,35 @@ namespace Shop
                         args.Player.SendInfoMessage("Info: This item is not listed for sale.");
                         return;
                     }
-                    args.Player.SendInfoMessage("Item: {0} Price: {1} Stock: {2} MaxStock: {3} Restock Interval: {4}", obj.Item,obj.Price,obj.Stock, obj.MaxStocks, obj.RestockTimer.Interval);
+                    string interval;
+                    string stock = "";
+                    string MaxStock = "";
+                    if (obj.RestockTimer == null)
+                    {
+                        interval = "Doesn't Restock";
+                    }
+                    else
+                    {
+                        interval = ((int)obj.RestockTimer.Interval).ToString();
+                    }
+                    if (obj.Stock == -1)
+                    {
+                        stock = "Infinity";
+                    }
+                    else
+                    {
+                        stock = obj.Stock.ToString();
+                    }
+                    if (obj.MaxStock == -1)
+                    {
+                        MaxStock = "Infinity";
+                    }
+                    else
+                    {
+                        MaxStock = obj.MaxStock.ToString();
+                    }
+
+                    args.Player.SendInfoMessage("Item: {0} Price: {1} Stock: {2} MaxStock: {3} Restock Interval: {4}", obj.Item, obj.Price, stock, MaxStock, interval);
                     if (obj.Region.Count() == 0)
                     {
                         args.Player.SendInfoMessage("Shop: No Shop Restrictions");
