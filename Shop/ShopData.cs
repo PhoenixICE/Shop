@@ -13,8 +13,7 @@ namespace Shop
     internal class ShopData
     {
         private Shop main;
-        private List<ShopObj> Shoplist = new List<ShopObj>();
-        private List<Timer> timer = new List<Timer>();
+        private List<ShopObj> Shoplist = new List<ShopObj>();        
 
         public ShopObj FindShopObjbyItemName(string name)
         {
@@ -28,11 +27,11 @@ namespace Shop
             return null;
         }
 
-        public void lowerStock(ShopObj obj)
+        public void lowerStock(ShopObj obj, int stack)
         {
             if (obj.Stock > 0)
             {
-                obj.Stock -= 1;
+                obj.Stock -= stack;
                 main.Database.Query("UPDATE storeshop SET stock = @0 WHERE name = @1 AND price = @2", obj.Stock, obj.Item, obj.Price);
             }
         }

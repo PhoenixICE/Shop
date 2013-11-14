@@ -662,9 +662,15 @@ namespace Shop
 
         private void shopreload(CommandArgs args)
         {
-            ShopList = new ShopData(this);
-            SetupConfig();
-            return;
+            try
+            {
+                ShopList = new ShopData(this);
+                SetupConfig();
+            }
+            catch (Exception e)
+            {
+                Log.ConsoleError(e.ToString());
+            }
         }
         //shop switch
         private void shop(CommandArgs args)
@@ -747,6 +753,13 @@ namespace Shop
                 return;
             }
 
+            //Check if there is enough stock
+            if (obj.Stock >= stack)
+            {
+                player.SendErrorMessage("Error: Not enough stock left for {0} to purchase {1}", item.name, stack);
+                return;
+            }
+
             //Check if has locked down group permissions
             if (!groupAllowed(player, obj.Group))
             {
@@ -811,7 +824,7 @@ namespace Shop
             {
                 return;
             }
-            ShopList.lowerStock(obj);
+            ShopList.lowerStock(obj, stack);
         }
 
         private Boolean freeSlots(TSPlayer player, Item item, int itemAmount)
