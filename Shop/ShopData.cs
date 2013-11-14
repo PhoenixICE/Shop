@@ -44,7 +44,7 @@ namespace Shop
                 {
                     while (result.Read())
                     {
-                        this.Shoplist.Add(new ShopObj(result.Get<string>("name"), result.Get<int>("price"), result.Get<string>("region").Split(new Char[] { ',' }).ToList(), result.Get<string>("groupname").Split(new Char[] { ',' }).ToList(), result.Get<int>("restockTimer"), result.Get<int>("stock"), result.Get<string>("onsale").Split(new Char[] { ',' }).ToList()));
+                        this.Shoplist.Add(new ShopObj(result.Get<string>("name"), result.Get<int>("price"), result.Get<string>("region").Split(new Char[] { ',' }).ToList(), result.Get<string>("groupname").Split(new Char[] { ',' }).ToList(), result.Get<int>("restockTimer"), result.Get<int>("stock"), result.Get<string>("onsale").Split(new Char[] { ',' }).ToList(), result.Get<int>("maxstacks")));
                     }
                 }
             }

@@ -62,8 +62,7 @@ namespace Shop
         {
             ServerApi.Hooks.GameInitialize.Register(this, OnInitialize);
         }
-
-       
+     
         protected override void Dispose(bool disposing)
         {
             if (disposing)
@@ -114,7 +113,8 @@ namespace Shop
                 new SqlColumn("groupname", MySqlDbType.VarChar) { DefaultValue = "", Length = 30, NotNull = true },
                 new SqlColumn("restockTimer", MySqlDbType.Int32) { DefaultValue = "-1", NotNull = true },
                 new SqlColumn("stock", MySqlDbType.Int32) { DefaultValue = "-1", NotNull = true },
-                new SqlColumn("onsale", MySqlDbType.VarChar) { DefaultValue = "", Length = 30, NotNull = true }
+                new SqlColumn("onsale", MySqlDbType.VarChar) { DefaultValue = "", Length = 30, NotNull = true },
+                new SqlColumn("maxstock", MySqlDbType.Int32) { DefaultValue = "-1", Length = 30, NotNull = true }
                 ));
             sqlcreator.EnsureExists(new SqlTable("storetrade",
                 new SqlColumn("ID", MySqlDbType.VarChar) { Primary = true, Length = 30 },
@@ -680,6 +680,7 @@ namespace Shop
             {
                 //Display Help
                 args.Player.SendInfoMessage("Info: /shop buy (item) [amount]");
+                args.Player.SendInfoMessage("Info: /shop search (item)");
                 return;
             }
             try
@@ -693,7 +694,7 @@ namespace Shop
                         return;
                     }
                     //display help as no item specificed | or too many params
-                    if (args.Parameters.Count == 1 || args.Parameters.Count >= 4)
+                    if (args.Parameters.Count == 1 || args.Parameters.Count > 3)
                     {
                         args.Player.SendInfoMessage("Info: /shop buy (item) [amount]");
                         return;
@@ -721,6 +722,62 @@ namespace Shop
                         }
                         BuyItem(args.Player, args.Parameters[1], stack);
                     }
+                }
+                else if(Switch == "Search")
+                {
+                    //display help as no item specificed | or too many params
+                    if (args.Parameters.Count == 1 || args.Parameters.Count > 2)
+                    {
+                        args.Player.SendInfoMessage("Info: /shop search (item)");
+                        return;
+                    }
+                    Item item = getItem(args.Player, args.Parameters[1], 1);
+                    if (item == null)
+                    {
+                        return;
+                    }
+                    ShopObj obj = ShopList.FindShopObjbyItemName(item.name);
+                    if (obj == null)
+                    {
+                        args.Player.SendInfoMessage("Info: This item is not listed for sale.");
+                        return;
+                    }
+                    args.Player.SendInfoMessage("Item: {0} Price: {1} Stock: {2} MaxStock: {3} Restock Interval: {4}", obj.Item,obj.Price,obj.Stock, obj.MaxStocks, obj.RestockTimer.Interval);
+                    if (obj.Region.Count() == 0)
+                    {
+                        args.Player.SendInfoMessage("Shop: No Shop Restrictions");
+                    }
+                    else
+                    {
+                        string regions = "";
+                        foreach (string str in obj.Region)
+                        {
+                            regions += str + ", ";
+                        }
+                        regions = regions.Remove(regions.Length - 2);
+                        args.Player.SendInfoMessage("Shop: {0}", regions);
+                    }
+                    if (obj.Group.Count() == 0)
+                    {
+                        args.Player.SendInfoMessage("Group: No Group Restrictions");
+                    }
+                    else
+                    {
+                        string groups = "";
+                        foreach (string str in obj.Group)
+                        {
+                            groups += str + ", ";
+                        }
+                        groups = groups.Remove(groups.Length - 2);
+                        args.Player.SendInfoMessage("Group: {0}", groups);
+                    }
+                }
+                else
+                {                    
+                    //Display Help
+                    args.Player.SendInfoMessage("Info: /shop buy (item) [amount]");
+                    args.Player.SendInfoMessage("Info: /shop search (item)");
+                    return;                    
                 }
             }
             catch (Exception e)

@@ -20,8 +20,9 @@ namespace Shop
         public Timer RestockTimer;
         public int Stock;
         public List<string> Onsale;
+        public int MaxStocks;
 
-        public ShopObj(string item, int price, List<string> regions, List<string> groups, int restockTimer, int stock, List<string> onsales)
+        public ShopObj(string item, int price, List<string> regions, List<string> groups, int restockTimer, int stock, List<string> onsales, int maxstocks)
         {
             this.Item = item;
             this.Price = price;
@@ -35,11 +36,13 @@ namespace Shop
             }
             this.Stock = stock;
             this.Onsale = onsales;
+            this.MaxStocks = maxstocks;
         }
 
         private void TimerElapsed(object sender, ElapsedEventArgs e)
         {
-            this.Stock += 1;
+            if (this.Stock < this.MaxStocks)
+                this.Stock += 1;
         }
     }
 }
