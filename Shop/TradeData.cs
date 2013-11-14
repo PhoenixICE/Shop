@@ -26,6 +26,13 @@ namespace Shop
             tradeID += 1;
         }
 
+        internal void addExchange(TSPlayer player, Item item, int stack, int money)
+        {
+            main.Database.Query("INSERT INTO storetrade(ID, User, ItemID, Stack, WItemID, WStack) VALUES(@0,@1,@2,@3,@4,@5)", tradeID, player.Name, item.netID, stack, 0, money);
+            this.tradeObj.Add(new TradeObj(tradeID, player.Name, item.netID, stack, 0, money));
+            tradeID += 1;
+        }
+
         public TradeObj TradeObjByID(int ID)
         {
             foreach(TradeObj obj in tradeObj)
@@ -90,6 +97,7 @@ namespace Shop
         public void returnOffer(OfferObj obj)
         {
             main.Database.Query("UPDATE storeoffer SET TradeID = @0 WHERE ID = @1", -1, obj.ID);
+            obj.Type = -1;
         }
 
         public void updateTradeData()

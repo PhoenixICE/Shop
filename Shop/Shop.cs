@@ -182,11 +182,18 @@ namespace Shop
                         {
                             if (args.TPlayer.inventory[i].netID == item.netID)
                             {
-                                if (args.TPlayer.inventory[i].stack == stack)
+                                if (args.TPlayer.inventory[i].stack >= stack)
                                 {
                                     //all conditions met, delete item and add offer entry.   
                                     TradeList.processOffer(args.Player, id, item.netID, stack);
-                                    args.TPlayer.inventory[i].SetDefaults(0);
+                                    if (args.TPlayer.inventory[i].stack == stack)
+                                    {
+                                        args.TPlayer.inventory[i].SetDefaults(0);
+                                    }
+                                    else
+                                    {
+                                        args.TPlayer.inventory[i].stack -= stack;
+                                    }
                                     NetMessage.SendData((int)PacketTypes.PlayerSlot, -1, -1, "", args.Player.Index, i);
                                     NetMessage.SendData((int)PacketTypes.PlayerSlot, args.Player.Index, -1, "", args.Player.Index, i);
                                     args.Player.SendInfoMessage("Sucess: Offer Completed Successfully! You have offered {0} of {1}.", stack, item.name);
@@ -258,7 +265,6 @@ namespace Shop
                                 if (obj.Type == tradeID)
                                 {
                                     TradeList.returnOffer(obj);
-                                    obj.Type = -1;
                                 }
                             }
                             break;
@@ -336,6 +342,7 @@ namespace Shop
                 }
                 //main args switch
                 string Switch = args.Parameters[0].ToLower();
+                //trade exchange (item) (amount) (currency)
                 if (Switch == "exchange")
                 {
                     if (!args.Player.Group.HasPermission("store.trade.exchange"))
@@ -350,7 +357,71 @@ namespace Shop
                         args.Player.SendInfoMessage("Info: Set the item you wish to trade, the amount of them and the amount of {0} you wish to exchange for.", Wolfje.Plugins.SEconomy.Money.CurrencyName);
                         return;
                     }
+                    int stack;
+                    if(!int.TryParse(args.Parameters[2], out stack))
+                    {
+                            args.Player.SendErrorMessage("Error: Invalid stack size!");
+                            args.Player.SendErrorMessage("Error: You have entered {0}", args.Parameters[2]);
+                            return;
+                    }
+                    //check for negative
+                    if (stack <= 0)
+                    {
+                        args.Player.SendErrorMessage("Error: Can't have stack size of zero or lower!");
+                        return;
+                    }
+                    int money;
+                    if (!int.TryParse(args.Parameters[3], out money))
+                    {
+                        args.Player.SendErrorMessage("Error: Invalid Currency value!");
+                        args.Player.SendErrorMessage("Error: You have entered {0}", args.Parameters[3]);
+                        return;
+                    }
+                    if (money <= 0)
+                    {
+                        args.Player.SendErrorMessage("Error: Can't have currency value of zero or lower!");
+                        return;
+                    }
+                    //check item
+                    Item item = getItem(args.Player, args.Parameters[1], stack);
+                    if (item == null)
+                    {
+                        return;
+                    }
 
+                    //check if user has the item
+                    for (int i = 0; i < 48; i++)
+                    {
+                        if (args.TPlayer.inventory[i].netID == item.netID)
+                        {
+                            if (args.TPlayer.inventory[i].stack >= stack)
+                            {
+                                //all conditions met, delete item and add offer entry.
+                                TradeList.addExchange(args.Player, item, stack, money);
+                                if (args.TPlayer.inventory[i].stack == stack)
+                                {
+                                    args.TPlayer.inventory[i].SetDefaults(0);
+                                }
+                                else
+                                {
+                                    args.TPlayer.inventory[i].stack -= stack;
+                                }
+                                NetMessage.SendData((int)PacketTypes.PlayerSlot, -1, -1, "", args.Player.Index, i);
+                                NetMessage.SendData((int)PacketTypes.PlayerSlot, args.Player.Index, -1, "", args.Player.Index, i);
+                                args.Player.SendInfoMessage("Sucess: Offer Completed Successfully! You have offered {0} of {1}.", stack, item.name);
+                                return;
+                            }
+                            else
+                            {
+                                //failed cause not enough stacks from player
+                                args.Player.SendErrorMessage("Error: Offer could not be completed, you have offered more stacks then you have!");
+                                return;
+                            }
+                        }
+                    }
+                    args.Player.SendErrorMessage("Error: Offer could not be completed, you do not have that item to offer");
+                    args.Player.SendErrorMessage("Error: Offered Item - {0}", item.name);
+                    return;                    
                 }
                 else if (Switch == "add")
                 {
@@ -399,7 +470,7 @@ namespace Shop
                                     {
                                         args.TPlayer.inventory[i].SetDefaults(0);
                                     }
-                                    else if(args.TPlayer.inventory[i].stack >= stack)
+                                    else
                                     {
                                         args.TPlayer.inventory[i].stack -= stack;
                                     }
@@ -428,8 +499,8 @@ namespace Shop
                         int stack;
                         if (!int.TryParse(args.Parameters[2], out stack))
                         {
-                            args.Player.SendInfoMessage("Info: /trade add (item) (amount) [item] [amount]");
-                            args.Player.SendInfoMessage("Info: Set the item you wish to trade and the amount of them, optionally set the item you wish to trade for and the amount of them");
+                            args.Player.SendErrorMessage("Error: Stack size must be numeric!");
+                            args.Player.SendErrorMessage("Error: You have entered: {0}", args.Parameters[2]);
                         }
                         if (stack <= 0)
                         {
@@ -440,12 +511,12 @@ namespace Shop
                         int wstack;
                         if (!Int32.TryParse(args.Parameters[4], out wstack))
                         {
-                            args.Player.SendInfoMessage("Info: /trade add (item) (amount) [item] [amount]");
-                            args.Player.SendInfoMessage("Info: Set the item you wish to trade and the amount of them, optionally set the item you wish to trade for and the amount of them!");
+                            args.Player.SendErrorMessage("Error: Wanted stack size must be numeric!");
+                            args.Player.SendErrorMessage("Error: You have entered: {0}", args.Parameters[4]);
                         }
-                        if (wstack == 0)
+                        if (wstack <= 0)
                         {
-                            args.Player.SendErrorMessage("Error: Can't have stack size of zero");
+                            args.Player.SendErrorMessage("Error: Can't have wanted stack size of zero or less");
                             return;
                         }
                         Item witem = getItem(args.Player, args.Parameters[3], 1);
@@ -453,10 +524,17 @@ namespace Shop
                         {
                             if (args.TPlayer.inventory[i].netID == item.netID)
                             {
-                                if (args.TPlayer.inventory[i].stack == stack)
+                                if (args.TPlayer.inventory[i].stack >= stack)
                                 {
                                     //all conditions met, delete item and add offer entry.   
-                                    args.TPlayer.inventory[i].SetDefaults(0);
+                                    if (args.TPlayer.inventory[i].stack == stack)
+                                    {
+                                        args.TPlayer.inventory[i].SetDefaults(0);
+                                    }
+                                    else
+                                    {
+                                        args.TPlayer.inventory[i].stack -= stack;
+                                    }
                                     NetMessage.SendData((int)PacketTypes.PlayerSlot, -1, -1, "", args.Player.Index, i);
                                     NetMessage.SendData((int)PacketTypes.PlayerSlot, args.Player.Index, -1, "", args.Player.Index, i);
                                     AddTrade(args.Player, item, stack, witem, wstack);
@@ -485,7 +563,7 @@ namespace Shop
                         args.Player.SendErrorMessage("Error: You do not have permission to list trades!");
                         return;
                     }
-                    //List first 7 pages
+                    //List first 9
                     if (args.Parameters.Count <= 2)
                     {
                         int page;
@@ -505,7 +583,27 @@ namespace Shop
                         {
                             if (i > TradeList.tradeObj.Count - 1)
                                 break;
-                            args.Player.SendInfoMessage("{0} - {1} - {2}:{3} - {4}:{5}", TradeList.tradeObj[i].ID, TradeList.tradeObj[i].User, TShock.Utils.GetItemById(TradeList.tradeObj[i].ItemID).name, TradeList.tradeObj[i].Stack, TShock.Utils.GetItemById(TradeList.tradeObj[i].WItemID).name, TradeList.tradeObj[i].WStack);
+                            string item = "";
+                            string witem = "";
+
+                            if (TradeList.tradeObj[i].ItemID == 0)
+                            {
+                                item = Money.CurrencyName;
+                            }
+                            else
+                            {
+                                item = TShock.Utils.GetItemById(TradeList.tradeObj[i].ItemID).name;
+                            }
+
+                            if (TradeList.tradeObj[i].WItemID == 0)
+                            {
+                                witem = Money.CurrencyName;
+                            }
+                            else
+                            {
+                                witem = TShock.Utils.GetItemById(TradeList.tradeObj[i].WItemID).name;
+                            }
+                            args.Player.SendInfoMessage("{0} - {1} - {2}:{3} - {4}:{5}", TradeList.tradeObj[i].ID, TradeList.tradeObj[i].User, item, TradeList.tradeObj[i].Stack, witem, TradeList.tradeObj[i].WStack);
                         }
                         if (page < TradeList.tradeObj.Count())
                             args.Player.SendInfoMessage("/trade list {0}", (page / 9) + 1);
@@ -542,42 +640,89 @@ namespace Shop
                             return;
                         }
                         //check if wanted item is listed, otherwise exit
-                        if (obj.WItemID == 0)
+                        if (obj.WItemID == 0 && obj.WStack == 0)
                         {
                             args.Player.SendErrorMessage("Error: Cannot accept trade as no wanted item is listed.");
                             args.Player.SendErrorMessage("Error: Please use /trade offer, to make an offer to the player.");
                             return;
                         }
-                        Item witem = TShock.Utils.GetItemById(obj.WItemID);
-                        int wstack = obj.WStack;
-                        //check if player actually has the item requested
-                        for (int i = 0; i < 48; i++)
+                        Item witem;
+                        if (obj.WItemID != 0)
                         {
-                            if (args.TPlayer.inventory[i].netID == witem.netID)
+                            witem = TShock.Utils.GetItemById(obj.WItemID);
+                        }
+                        else
+                        {
+                            witem = null;
+                        }
+                        int wstack = obj.WStack;
+                        if (witem != null)
+                        {
+                            //check if player actually has the item requested
+                            for (int i = 0; i < 48; i++)
                             {
-                                if (args.TPlayer.inventory[i].stack == wstack)
+                                if (args.TPlayer.inventory[i].netID == witem.netID)
                                 {
-                                    //all conditions met, delete item and delete entry, add witem as the prize
-                                    TradeList.processTrade(args.Player, obj, witem, wstack);
-                                    args.TPlayer.inventory[i].SetDefaults(obj.ItemID);
-                                    args.TPlayer.inventory[i].stack = obj.Stack;
-                                    NetMessage.SendData((int)PacketTypes.PlayerSlot, -1, -1, "", args.Player.Index, i);
-                                    NetMessage.SendData((int)PacketTypes.PlayerSlot, args.Player.Index, -1, "", args.Player.Index, i);
-                                    args.Player.SendInfoMessage("Sucess: Trade Completed Successfully! You have gained {0} of {1}.", obj.Stack, TShock.Utils.GetItemById(obj.ItemID).name);
-                                    return;
+                                    if (args.TPlayer.inventory[i].stack == wstack)
+                                    {
+                                        TradeList.processTrade(args.Player, obj, witem, wstack);
+                                        //all conditions met, delete item and delete entry, add witem as the prize                                   
+                                        args.TPlayer.inventory[i].SetDefaults(obj.ItemID);
+                                        args.TPlayer.inventory[i].stack = obj.Stack;
+                                        NetMessage.SendData((int)PacketTypes.PlayerSlot, -1, -1, "", args.Player.Index, i);
+                                        NetMessage.SendData((int)PacketTypes.PlayerSlot, args.Player.Index, -1, "", args.Player.Index, i);
+                                        args.Player.SendInfoMessage("Sucess: Trade Completed Successfully! You have gained {0} of {1}.", obj.Stack, TShock.Utils.GetItemById(obj.ItemID).name);
+                                        return;
+                                    }
+                                    else
+                                    {
+                                        //failed cause not enough stacks from player
+                                        args.Player.SendErrorMessage("Error: Trade could not be completed, you do not have enough stacks of that item");
+                                        args.Player.SendErrorMessage("Error: Total Required Amount - {0}", wstack);
+                                        return;
+                                    }
                                 }
-                                else
+                            }
+                            args.Player.SendErrorMessage("Error: Trade could not be completed, you do not have the required item");
+                            args.Player.SendErrorMessage("Error: Required Item - {0}", witem.name);
+                            return;
+                        }
+                        //currency trade
+                        else
+                        {
+                            EconomyPlayer eaccount = SEconomyPlugin.GetEconomyPlayerByBankAccountNameSafe(args.Player.Name);
+                            if (eaccount.BankAccount.Balance >= wstack)
+                            {
+                                eaccount.BankAccount.TransferToAsync(SEconomyPlugin.WorldAccount, wstack, BankAccountTransferOptions.IsPayment, null, string.Format("Shop Plugin: Traded {0} for {1}", obj.ItemID, ((Money)wstack).ToLongString()));
+                                bool recived = false;
+                                for (int i = 0; i < 48; i++)
                                 {
-                                    //failed cause not enough stacks from player
-                                    args.Player.SendErrorMessage("Error: Trade could not be completed, you do not have enough stacks of that item");
-                                    args.Player.SendErrorMessage("Error: Total Required Amount - {0}", wstack);
+                                    if (args.TPlayer.inventory[i].netID == 0)
+                                    {
+                                        //all conditions met, delete item and add offer entry.   
+                                        args.TPlayer.inventory[i].SetDefaults(obj.ItemID);
+                                        args.TPlayer.inventory[i].stack = obj.Stack;
+                                        NetMessage.SendData((int)PacketTypes.PlayerSlot, -1, -1, "", args.Player.Index, i);
+                                        NetMessage.SendData((int)PacketTypes.PlayerSlot, args.Player.Index, -1, "", args.Player.Index, i);
+                                        TradeList.processTrade(args.Player, obj, witem, wstack);
+                                        args.Player.SendInfoMessage("Sucess: Item Collected! You have Gained {0} {1}.", obj.Stack, TShock.Utils.GetItemById(obj.ItemID).name);
+                                        recived = true;
+                                        break;
+                                    }
+                                }
+                                if (!recived)
+                                {
+                                    args.Player.SendErrorMessage("Error: You have no free inventory spaces!");
                                     return;
                                 }
                             }
+                            else
+                            {
+                                args.Player.SendErrorMessage("Error: You do not have enough {0}", Money.CurrencyName);
+                                args.Player.SendErrorMessage("Error: Required amount is {0}", ((Money)wstack).ToLongString());
+                                return;
+                            }
                         }
-                        args.Player.SendErrorMessage("Error: Trade could not be completed, you do not have the required item");
-                        args.Player.SendErrorMessage("Error: Required Item - {0}", witem.name);
-                        return;
                     }
                 }
                 else if (Switch == "check")
@@ -629,7 +774,7 @@ namespace Shop
                                             NetMessage.SendData((int)PacketTypes.PlayerSlot, -1, -1, "", args.Player.Index, i);
                                             NetMessage.SendData((int)PacketTypes.PlayerSlot, args.Player.Index, -1, "", args.Player.Index, i);
                                             TradeList.processAccept(args.Player, obj);
-                                            args.Player.SendInfoMessage("Sucess: Item Collected! You have Gained {0} of {1}.", obj.Stack, TShock.Utils.GetItemById(obj.ItemID).name);
+                                            args.Player.SendInfoMessage("Sucess: Item Collected! You have Gained {0} {1}.", obj.Stack, TShock.Utils.GetItemById(obj.ItemID).name);
                                             recived = true;
                                             i2 -= 1;
                                             break;
