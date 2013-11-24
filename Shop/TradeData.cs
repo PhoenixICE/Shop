@@ -60,9 +60,17 @@ namespace Shop
         public void processTrade(TSPlayer player, TradeObj obj, Item item, int stack)
         {
             main.Database.Query("DELETE FROM storetrade WHERE ID = @0", obj.ID);            
-            main.Database.Query("INSERT INTO storeoffer(ID, User, ItemID, Stack, TradeID) VALUES(@0,@1,@2,@3,@4)", offerID, obj.User, item.netID, stack, -1);
             tradeObj.Remove(obj);
-            offerObj.Add(new OfferObj(offerID, obj.User, item.netID, stack, -1));
+            if (item != null)
+            {
+                main.Database.Query("INSERT INTO storeoffer(ID, User, ItemID, Stack, TradeID) VALUES(@0,@1,@2,@3,@4)", offerID, obj.User, item.netID, stack, -1);
+                offerObj.Add(new OfferObj(offerID, obj.User, item.netID, stack, -1));
+            }
+            else
+            {
+                main.Database.Query("INSERT INTO storeoffer(ID, User, ItemID, Stack, TradeID) VALUES(@0,@1,@2,@3,@4)", offerID, obj.User, 0, stack, -1);
+                offerObj.Add(new OfferObj(offerID, obj.User, 0, stack, -1));
+            }
             offerID += 1;            
         }
 
@@ -87,7 +95,8 @@ namespace Shop
                     return;
                 }
                 main.Database.Query("DELETE FROM storetrade WHERE ID = @0", obj2.ID);
-                main.Database.Query("INSERT INTO storeoffer(ID, User, ItemID, Stack, TradeID) VALUES(@0,@1,@2,@3,@4)", offerID, player.Name, obj2.ItemID, obj2.Stack, -1);
+                main.Database.Query("INSERT INTO storeoffer(ID, User, ItemID, Stack, TradeID) VALUES(@0,@1,@2,@3,@4)", offerID, obj.User, obj2.ItemID, obj2.Stack, -1);
+                offerObj.Add(new OfferObj(offerID, obj.User, obj2.ItemID, obj2.Stack, -1));
                 offerID += 1;
                 tradeObj.Remove(obj2);
             }
@@ -98,6 +107,35 @@ namespace Shop
         {
             main.Database.Query("UPDATE storeoffer SET TradeID = @0 WHERE ID = @1", -1, obj.ID);
             obj.Type = -1;
+        }
+
+        internal void cancelTrade(TradeObj obj)
+        {
+            main.Database.Query("DELETE FROM storetrade WHERE ID = @0", obj.ID);
+            main.Database.Query("INSERT INTO storeoffer(ID, User, ItemID, Stack, TradeID) VALUES(@0,@1,@2,@3,@4)", offerID, obj.User, obj.ItemID, obj.Stack, -1);
+            offerObj.Add(new OfferObj(offerID, obj.User, obj.ItemID, obj.Stack, -1));
+            offerID += 1;
+            foreach (OfferObj obj2 in offerObj)
+            {
+                if (obj2.Type == obj.ID)
+                {
+                    main.Database.Query("UPDATE storeoffer SET TradeID = @0 WHERE ID = @1", -1, obj.ID);
+                    obj2.Type = -1;
+                }
+            }
+            tradeObj.Remove(obj);
+        }
+
+        internal void cancelOffers(string name)
+        {
+            foreach (OfferObj obj in offerObj)
+            {
+                if (obj.User == name)
+                {
+                    main.Database.Query("UPDATE storeoffer SET TradeID = @0 WHERE ID = @1", -1, obj.ID);
+                    obj.Type = -1;
+                }
+            }
         }
 
         public void updateTradeData()
