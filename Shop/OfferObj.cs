@@ -13,14 +13,16 @@ namespace Shop
         public int ItemID = new int();
         public int Stack = new int();
         public int Type = new int();
+        public int Active = new int();
 
-        public OfferObj(int id, string user, int itemid, int stack, int type)
+        public OfferObj(int id, string user, int itemid, int stack, int type, int active)
         {
             this.ID = id;
             this.User = user;
             this.ItemID = itemid;
             this.Stack = stack;
             this.Type = type;
+            this.Active = active;
         }
     }
 }

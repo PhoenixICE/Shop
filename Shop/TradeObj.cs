@@ -14,8 +14,9 @@ namespace Shop
         public int Stack = new int();
         public int WItemID = new int();
         public int WStack = new int();
+        public int Active = new int();
 
-        public TradeObj(int id, string user, int itemid, int stack, int witemid, int wstack)
+        public TradeObj(int id, string user, int itemid, int stack, int witemid, int wstack, int active)
         {
             this.ID = id;
             this.User = user;
@@ -23,6 +24,7 @@ namespace Shop
             this.Stack = stack;
             this.WItemID = witemid;
             this.WStack = wstack;
+            this.Active = active;
         }
     }
 }
