@@ -21,7 +21,7 @@ namespace Shop
         //adds new trade entry, and updates interal cached data.
         public void addTrade(string user, int itemid, int stack, int witemid = 0, int wstack = 0)
         {
-            main.Database.Query("INSERT INTO storetrade(ID, User, ItemID, Stack, WItemID, WStack, Active) VALUES(@0,@1,@2,@3,@4,@5,@6)",tradeID,user,itemid,stack,witemid,wstack,1);
+            main.Database.Query("INSERT INTO storetrade(ID, User, ItemID, Stack, WItemID, WStack, Active) VALUES(@0,@1,@2,@3,@4,@5,@6)", tradeID, user, itemid, stack, witemid, wstack, 1);
             this.tradeObj.Add(new TradeObj(tradeID, user, itemid, stack, witemid, wstack, 1));
             tradeID += 1;
         }
@@ -135,7 +135,7 @@ namespace Shop
         {
             foreach (OfferObj obj in offerObj)
             {
-                if (obj.User == name)
+                if (obj.User == name && obj.Active == 1)
                 {
                     main.Database.Query("UPDATE storeoffer SET TradeID = @0 WHERE ID = @1", -1, obj.ID);
                     obj.Type = -1;

@@ -52,7 +52,7 @@ namespace Shop
 
         public override Version Version
         {
-            get { return new Version("1.2.2"); }
+            get { return new Version("1.2.4"); }
         }
         public Shop(Main game)
             : base(game)
@@ -163,6 +163,7 @@ namespace Shop
                     args.Player.SendInfoMessage("Info: use /trade list, to find lists of IDs to offer on");
                     return;
                 }
+                //offering with minimum amount of args
                 if (args.Parameters.Count == 4)
                 {
                     int id;
@@ -189,7 +190,6 @@ namespace Shop
                             if (args.TPlayer.inventory[i].stack >= stack)
                             {
                                 //all conditions met, delete item and add offer entry.   
-                                TradeList.processOffer(args.Player, id, item.netID, stack);
                                 if (args.TPlayer.inventory[i].stack == stack)
                                 {
                                     args.TPlayer.inventory[i].SetDefaults(0);
@@ -198,20 +198,15 @@ namespace Shop
                                 {
                                     args.TPlayer.inventory[i].stack -= stack;
                                 }
+                                TradeList.processOffer(args.Player, id, item.netID, stack);
                                 NetMessage.SendData((int)PacketTypes.PlayerSlot, -1, -1, "", args.Player.Index, i);
                                 NetMessage.SendData((int)PacketTypes.PlayerSlot, args.Player.Index, -1, "", args.Player.Index, i);
-                                args.Player.SendInfoMessage("Sucess: Offer Completed Successfully! You have offered {0} of {1}.", stack, item.name);
-                                return;
-                            }
-                            else
-                            {
-                                //failed cause not enough stacks from player
-                                args.Player.SendErrorMessage("Error: Offer could not be completed, you have offered more stacks then you have!");
+                                args.Player.SendInfoMessage("Sucess: Offer Completed Successfully! You have offered {0} of {1} on TradeID {2}.", stack, item.name, id);
                                 return;
                             }
                         }
                     }
-                    args.Player.SendErrorMessage("Error: Offer could not be completed, you do not have that item to offer");
+                    args.Player.SendErrorMessage("Error: Adding Trade could not be completed, you do not have that item to Trade, or do not have enough stacks in one pile!");
                     args.Player.SendErrorMessage("Error: Offered Item - {0}", item.name);
                     return;
                 }
@@ -237,7 +232,7 @@ namespace Shop
                     args.Player.SendErrorMessage("Error: Incorrect ID Entered!");
                     return;
                 }
-                if (oObj.Type == -1)
+                if (oObj.Type == -1 || oObj.Active == 0)
                 {
                     args.Player.SendErrorMessage("Error: You cannot accept this Offer");
                     return;
@@ -271,7 +266,7 @@ namespace Shop
                         //remove all other offers and return to owner
                         foreach (OfferObj obj in TradeList.offerObj)
                         {
-                            if (obj.Type == tradeID)
+                            if (obj.Type == tradeID && obj.Active == 1)
                             {
                                 TradeList.returnOffer(obj);
                             }
@@ -291,7 +286,7 @@ namespace Shop
             {
                 if (args.Parameters.Count != 2)
                 {
-                    args.Player.SendInfoMessage("Info: /offer list [id]");
+                    args.Player.SendInfoMessage("Info: /offer list (id)");
                     args.Player.SendInfoMessage("Info: Lists all offers for a trade ID");
                     return;
                 }
@@ -303,7 +298,8 @@ namespace Shop
                         args.Player.SendErrorMessage("Error: Invalid ID Entered!");
                         return;
                     }
-                    if (TradeList.TradeObjByID(id).User != args.Player.Name && !args.Player.Group.HasPermission("store.admin"))
+                    TradeObj tObj = TradeList.TradeObjByID(id);
+                    if ((tObj.User != args.Player.Name || !args.Player.Group.HasPermission("store.admin")) && tObj.Active == 1)
                     {
                         args.Player.SendErrorMessage("Error: You cannot check offers on this item!");
                         return;
@@ -311,7 +307,7 @@ namespace Shop
                     args.Player.SendMessage("ID - User - Offered Item:Stack", Color.Green);
                     foreach (OfferObj obj in TradeList.offerObj)
                     {
-                        if (obj.Type == id)
+                        if (obj.Type == id && obj.Active == 1)
                             args.Player.SendInfoMessage("{0} - {1} - {2}:{3}", obj.ID, obj.User, TShock.Utils.GetItemById(obj.ItemID).name, obj.Stack);
                     }
                     return;
@@ -327,7 +323,7 @@ namespace Shop
                 if (args.Parameters.Count != 2)
                 {
                     args.Player.SendInfoMessage("Info: /offer cancel (id)");
-                    args.Player.SendInfoMessage("Info: Cancels all offers for the a trade id");
+                    args.Player.SendInfoMessage("Info: Cancels all offers you made for a trade id");
                     return;
                 }
                 int id;
@@ -647,7 +643,7 @@ namespace Shop
                     args.Player.SendErrorMessage("Error: You do not have permission to accept trades!");
                     return;
                 }
-                //display help as no item specificed | or too many params
+                //display help as no item specificed or too many params
                 if (args.Parameters.Count == 1 || args.Parameters.Count > 2)
                 {
                     args.Player.SendInfoMessage("Info: /trade accept (id)");
@@ -764,7 +760,7 @@ namespace Shop
                 if (args.Parameters.Count != 1)
                 {
                     args.Player.SendInfoMessage("Info: /trade check");
-                    args.Player.SendInfoMessage("Info: Lists your trades");
+                    args.Player.SendInfoMessage("Info: Lists your current trades");
                     return;
                 }
                 //List trades
@@ -781,7 +777,7 @@ namespace Shop
             }
             else if (Switch == "collect")
             {
-                if (args.Parameters.Count() != 2)
+                if (args.Parameters.Count() != 1)
                 {
                     args.Player.SendInfoMessage("Info: /trade collect");
                     args.Player.SendInfoMessage("Info: Collects traded items from trades, and any finished/rejected trades");
@@ -789,7 +785,7 @@ namespace Shop
                     return;
                 }
                 //accept all stuff
-                if (args.Parameters.Count() == 2)
+                if (args.Parameters.Count() == 1)
                 {
                     foreach (OfferObj obj in TradeList.offerObj)
                     {
@@ -803,12 +799,12 @@ namespace Shop
                                 {
                                     if (args.TPlayer.inventory[i].netID == 0)
                                     {
-                                        //all conditions met, delete item and add offer entry.   
+                                        //all conditions met, delete item and add offer entry.  
+                                        TradeList.processAccept(args.Player, obj);
                                         args.TPlayer.inventory[i].SetDefaults(obj.ItemID);
                                         args.TPlayer.inventory[i].stack = obj.Stack;
                                         NetMessage.SendData((int)PacketTypes.PlayerSlot, -1, -1, "", args.Player.Index, i);
                                         NetMessage.SendData((int)PacketTypes.PlayerSlot, args.Player.Index, -1, "", args.Player.Index, i);
-                                        TradeList.processAccept(args.Player, obj);
                                         args.Player.SendInfoMessage("Sucess: Item Collected! You have Gained {0} {1}.", obj.Stack, TShock.Utils.GetItemById(obj.ItemID).name);
                                         recived = true;
                                         break;
@@ -825,7 +821,7 @@ namespace Shop
                             {
                                 TradeList.processAccept(args.Player, obj);
                                 EconomyPlayer eaccount = SEconomyPlugin.GetEconomyPlayerSafe(args.Player.Index);
-                                SEconomyPlugin.WorldAccount.TransferToAsync(eaccount.BankAccount, obj.Stack, BankAccountTransferOptions.IsPayment, null, string.Format("Shop: Collected Offer ID {0}", obj.ID));
+                                SEconomyPlugin.WorldAccount.TransferToAsync(eaccount.BankAccount, obj.Stack, BankAccountTransferOptions.IsPayment | BankAccountTransferOptions.AnnounceToReceiver, null, string.Format("Shop: Collected Offer ID {0}", obj.ID));
                             }
                         }
                     }
@@ -849,7 +845,7 @@ namespace Shop
                 int id;
                 if (!int.TryParse(args.Parameters[1], out id))
                 {
-                    args.Player.SendErrorMessage("Error: Inccorect ID entered!");
+                    args.Player.SendErrorMessage("Error: Invalid ID entered!");
                     return;
                 }
                 TradeObj obj = TradeList.TradeObjByID(id);
@@ -858,9 +854,9 @@ namespace Shop
                     args.Player.SendErrorMessage("Error: Inccorect ID entered!");
                     return;
                 }
-                if (obj.User != args.Player.Name || !args.Player.Group.HasPermission("store.admin"))
+                if ((obj.User != args.Player.Name || !args.Player.Group.HasPermission("store.admin")) && obj.Active == 1)
                 {
-                    args.Player.SendErrorMessage("Error: You do not own this trade!");
+                    args.Player.SendErrorMessage("Error: You do not own this trade or trade has already been completed!");
                     return;
                 }
                 //all checks complete send trade back to collection queue
