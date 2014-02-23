@@ -52,11 +52,7 @@ namespace Shop
 
         public override Version Version
         {
-<<<<<<< HEAD
             get { return new Version(1, 2, 5); }
-=======
-            get { return new Version(1, 2, 6); }
->>>>>>> remotes/origin/master
         }
         public Shop(Main game)
             : base(game)
