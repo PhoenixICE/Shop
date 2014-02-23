@@ -26,7 +26,7 @@ using Wolfje.Plugins.SEconomy.Journal;
 
 namespace Shop
 {
-    [ApiVersion(1, 14)]
+    [ApiVersion(1, 15)]
     public class Shop : TerrariaPlugin
     {
         internal ShopData ShopList;
@@ -52,7 +52,7 @@ namespace Shop
 
         public override Version Version
         {
-            get { return new Version("1.2.4"); }
+            get { return new Version(1, 2, 5); }
         }
         public Shop(Main game)
             : base(game)
@@ -361,6 +361,8 @@ namespace Shop
                 args.Player.SendInfoMessage("Info: /trade list");
                 args.Player.SendInfoMessage("Info: /trade collect");
                 args.Player.SendInfoMessage("Info: /trade check");
+                args.Player.SendInfoMessage("Info: /trade search");
+                args.Player.SendInfoMessage("Info: /trade cancel");
                 return;
             }
             //main args switch
@@ -581,7 +583,7 @@ namespace Shop
                     args.Player.SendErrorMessage("Error: You do not have permission to list trades!");
                     return;
                 }
-                //List first 9
+                //List first 9 (This is NOT WORKING, needs revision, as of now it ignores page size and lists whole list of items)
                 if (args.Parameters.Count <= 2)
                 {
                     int firstpage = 1;
@@ -851,7 +853,7 @@ namespace Shop
                 TradeObj obj = TradeList.TradeObjByID(id);
                 if (obj == null)
                 {
-                    args.Player.SendErrorMessage("Error: Inccorect ID entered!");
+                    args.Player.SendErrorMessage("Error: Incorrect ID entered!");
                     return;
                 }
                 if ((obj.User != args.Player.Name || !args.Player.Group.HasPermission("store.admin")) && obj.Active == 1)
@@ -863,6 +865,29 @@ namespace Shop
                 TradeList.cancelTrade(obj);
                 args.Player.SendInfoMessage("Info: Trade has been cancelled, please use /trade collect to reclaim your items.");
                 return;
+            }
+            else if (Switch == "search")
+            {
+                if (args.Parameters.Count != 2)
+                {
+                    args.Player.SendInfoMessage("Info: /trade search (name)");
+                    args.Player.SendInfoMessage("Info: Searches the trade list for all occurences of said item");
+                    return;
+                }
+                List<TradeObj> objlist = TradeList.TradeObjByName(args.Parameters[1]);
+                if (objlist.Count() < 1)
+                {
+                    args.Player.SendErrorMessage("Error: No items could be found / More than one item matched!");
+                    return;
+                }
+                //List trades
+                args.Player.SendMessage("ID - User - Item:Stack - Wanted:Stack", Color.Green);
+                foreach (TradeObj obj in objlist)
+                {
+                    args.Player.SendInfoMessage("{0} - {1} - {2}:{3} - {4}:{5}", obj.ID, obj.User, TShock.Utils.GetItemById(obj.ItemID).name, obj.Stack, TShock.Utils.GetItemById(obj.WItemID).name, obj.WStack);
+                }
+                    return;            
+                
             }
             else
             {
