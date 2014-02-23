@@ -47,10 +47,10 @@
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
     <Reference Include="TerrariaServer">
-      <HintPath>..\refs\TerrariaServer.exe</HintPath>
+      <HintPath>..\..\..\..\Documents\tshock_release\TerrariaServer.exe</HintPath>
     </Reference>
     <Reference Include="TShockAPI">
-      <HintPath>..\refs\TShockAPI.dll</HintPath>
+      <HintPath>..\..\..\..\Documents\tshock_release\ServerPlugins\TShockAPI.dll</HintPath>
     </Reference>
     <Reference Include="Wolfje.Plugins.SEconomy">
       <HintPath>..\refs\Wolfje.Plugins.SEconomy.dll</HintPath>

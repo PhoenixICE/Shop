@@ -45,6 +45,27 @@ namespace Shop
             return null;
         }
 
+        public List<TradeObj> TradeObjByName(string Name)
+        {
+            List<Item> founditem = TShock.Utils.GetItemByName(Name);
+            List<TradeObj> foundlist = new List<TradeObj>();
+            if (founditem.Count() != 1)
+            {
+                return foundlist;
+            }
+            else
+            {
+                foreach (TradeObj obj in tradeObj)
+                {
+                    if (TShock.Utils.GetItemById(obj.ItemID).name == founditem[0].name)
+                    {
+                        foundlist.Add(obj);
+                    }
+                }
+                return foundlist;
+            }
+        }
+
         public OfferObj OfferObjByID(int ID)
         {
             foreach (OfferObj obj in offerObj)
