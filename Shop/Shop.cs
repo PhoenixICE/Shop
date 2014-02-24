@@ -52,7 +52,7 @@ namespace Shop
 
         public override Version Version
         {
-            get { return new Version(1, 2, 5); }
+            get { return new Version(1, 2, 6); }
         }
         public Shop(Main game)
             : base(game)
@@ -183,7 +183,7 @@ namespace Shop
                     {
                         return;
                     }
-                    for (int i = 0; i < 48; i++)
+                    for (int i = 0; i < 50; i++)
                     {
                         if (args.TPlayer.inventory[i].netID == item.netID)
                         {
@@ -250,7 +250,7 @@ namespace Shop
                 }
                 //all checks finally passed
                 bool recived = false;
-                for (int i = 0; i < 48; i++)
+                for (int i = 0; i < 50; i++)
                 {
                     if (args.TPlayer.inventory[i].netID == 0)
                     {
@@ -412,7 +412,7 @@ namespace Shop
                     {
                         return;
                     }
-                    for (int i = 0; i < 48; i++)
+                    for (int i = 0; i < 50; i++)
                     {
                         if (args.TPlayer.inventory[i].netID == item.netID)
                         {
@@ -479,7 +479,7 @@ namespace Shop
                         return;
                     }
                     //check if user has the item
-                    for (int i = 0; i < 48; i++)
+                    for (int i = 0; i < 50; i++)
                     {
                         if (args.TPlayer.inventory[i].netID == item.netID)
                         {
@@ -547,7 +547,7 @@ namespace Shop
                     {
                         return;
                     }
-                    for (int i = 0; i < 48; i++)
+                    for (int i = 0; i < 50; i++)
                     {
                         if (args.TPlayer.inventory[i].netID == item.netID)
                         {
@@ -583,28 +583,42 @@ namespace Shop
                     args.Player.SendErrorMessage("Error: You do not have permission to list trades!");
                     return;
                 }
-                //List first 9 (This is NOT WORKING, needs revision, as of now it ignores page size and lists whole list of items)
+                // The number of items per page is based off the configObj.ItemsPerPage variable (DEFAULT 50)
                 if (args.Parameters.Count <= 2)
                 {
+                    int icount = 1;
                     int firstpage = 1;
-                    int lastpage = 9;
+                    int multiplier = 1;
+                    int subtractor = configObj.ItemsPerPage - 1;
+                    int lastpage = configObj.ItemsPerPage;
                     if (args.Parameters.Count == 2)
                     {
-                        if (int.TryParse(args.Parameters[1], out lastpage))
+                        if (int.TryParse(args.Parameters[1], out multiplier))
                         {
-                            lastpage *= 9;
-                            firstpage = lastpage - 8;
+                            lastpage *= multiplier;
+                            firstpage = lastpage - subtractor;
+                            icount = firstpage;
                         }
                     }
 
                     args.Player.SendMessage("ID - User - Item:Stack - Wanted:Stack", Color.Green);
-                    int sent = 0;
-                    int check = 0;
+                    int sent = configObj.ItemsPerPage * multiplier - subtractor - 1;
+                    int check = sent;
+                    if (sent > TradeList.tradeObj.Count())
+                    {
+                        return;
+                    }
                     foreach (TradeObj obj in TradeList.tradeObj)
                     {
-                        if (obj.Active == 1)
+                        if (obj.Active == 1 && obj.ID == icount)
                         {
                             check++;
+                            if (sent == lastpage)
+                            {
+                                if (sent < check)
+                                    args.Player.SendInfoMessage("Type /trade list {0} for more items", multiplier + 1);
+                                break;
+                            }
                             string item = "";
                             string witem = "";
                             if (obj.ItemID == 0)
@@ -619,7 +633,6 @@ namespace Shop
                             if (obj.WItemID == 0)
                             {
                                 witem = SEconomyPlugin.Configuration.MoneyConfiguration.MoneyName;
-
                             }
                             else
                             {
@@ -627,14 +640,14 @@ namespace Shop
                             }
                             args.Player.SendInfoMessage("{0} - {1} - {2}:{3} - {4}:{5}", obj.ID, obj.User, item, obj.Stack, witem, obj.WStack);
                             sent++;
+                            icount++;
                         }
-                        if (sent == lastpage)
+                        else if (obj.Active == 0)
                         {
-                            break;
+                            icount++;
                         }
+
                     }
-                    if (check < TradeList.tradeObj.Count())
-                        args.Player.SendInfoMessage("/trade list {0}", (check / 9) + 1);
                     return;
                 }
             }
@@ -687,7 +700,7 @@ namespace Shop
                     if (witem != null)
                     {
                         //check if player actually has the item requested
-                        for (int i = 0; i < 48; i++)
+                        for (int i = 0; i < 50; i++)
                         {
                             if (args.TPlayer.inventory[i].netID == witem.netID)
                             {
@@ -725,7 +738,7 @@ namespace Shop
                         if (eaccount.BankAccount.Balance >= wstack)
                         {
                             bool recived = false;
-                            for (int i = 0; i < 48; i++)
+                            for (int i = 0; i < 50; i++)
                             {
                                 if (args.TPlayer.inventory[i].netID == 0)
                                 {
@@ -797,7 +810,7 @@ namespace Shop
                             if (obj.ItemID != 0)
                             {
                                 bool recived = false;
-                                for (int i = 0; i < 48; i++)
+                                for (int i = 0; i < 50; i++)
                                 {
                                     if (args.TPlayer.inventory[i].netID == 0)
                                     {
