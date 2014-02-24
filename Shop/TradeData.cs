@@ -28,7 +28,7 @@ namespace Shop
 
         internal void addExchange(TSPlayer player, Item item, int stack, int money)
         {
-            main.Database.Query("INSERT INTO storetrade(ID, User, ItemID, Stack, WItemID, WStack, Active) VALUES(@0,@1,@2,@3,@4,@5)", tradeID, player.Name, item.netID, stack, 0, money, 1);
+            main.Database.Query("INSERT INTO storetrade(ID, User, ItemID, Stack, WItemID, WStack, Active) VALUES(@0,@1,@2,@3,@4,@5,@6)", tradeID, player.Name, item.netID, stack, 0, money, 1);
             this.tradeObj.Add(new TradeObj(tradeID, player.Name, item.netID, stack, 0, money, 1));
             tradeID += 1;
         }

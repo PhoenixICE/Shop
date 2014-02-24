@@ -602,7 +602,7 @@ namespace Shop
                     int check = 0;
                     foreach (TradeObj obj in TradeList.tradeObj)
                     {
-                        if (obj.Active == 1 && check >= firstpage)
+                        if (obj.Active == 1)
                         {
                             check++;
                             string item = "";
@@ -856,7 +856,7 @@ namespace Shop
                     args.Player.SendErrorMessage("Error: Incorrect ID entered!");
                     return;
                 }
-                if ((obj.User != args.Player.Name || !args.Player.Group.HasPermission("store.admin")) && obj.Active == 1)
+                if ((obj.User != args.Player.Name || !args.Player.Group.HasPermission("store.admin")) && obj.Active == 0)
                 {
                     args.Player.SendErrorMessage("Error: You do not own this trade or trade has already been completed!");
                     return;
@@ -884,10 +884,32 @@ namespace Shop
                 args.Player.SendMessage("ID - User - Item:Stack - Wanted:Stack", Color.Green);
                 foreach (TradeObj obj in objlist)
                 {
-                    args.Player.SendInfoMessage("{0} - {1} - {2}:{3} - {4}:{5}", obj.ID, obj.User, TShock.Utils.GetItemById(obj.ItemID).name, obj.Stack, TShock.Utils.GetItemById(obj.WItemID).name, obj.WStack);
+                    if (obj.Active == 1)
+                    {
+                        string item = "";
+                        string witem = "";
+                        if (obj.ItemID == 0)
+                        {
+                            item = SEconomyPlugin.Configuration.MoneyConfiguration.MoneyName; ;
+                        }
+                        else
+                        {
+                            item = TShock.Utils.GetItemById(obj.ItemID).name;
+                        }
+
+                        if (obj.WItemID == 0)
+                        {
+                            witem = SEconomyPlugin.Configuration.MoneyConfiguration.MoneyName;
+
+                        }
+                        else
+                        {
+                            witem = TShock.Utils.GetItemById(obj.WItemID).name;
+                        }
+                        args.Player.SendInfoMessage("{0} - {1} - {2}:{3} - {4}:{5}", obj.ID, obj.User, item, obj.Stack, witem, obj.WStack);
+                    }
                 }
-                    return;            
-                
+                return;
             }
             else
             {
