@@ -11,6 +11,7 @@ namespace Shop
         public int eclipse = 10;
         public int day = 0;
         public int night = 0;
+        public int ItemsPerPage = 50;
 
         public static ShopConfig Read(string path)
         {
