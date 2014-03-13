@@ -52,7 +52,7 @@ namespace Shop
 
         public override Version Version
         {
-            get { return new Version(1, 2, 6); }
+            get { return new Version(1, 2, 7); }
         }
         public Shop(Main game)
             : base(game)
@@ -1121,7 +1121,7 @@ namespace Shop
             }
 
             //Check if there is enough stock
-            if (obj.Stock >= stack)
+            if (obj.Stock <= stack)
             {
                 player.SendErrorMessage("Error: Not enough stock left for {0} to purchase {1}", item.name, stack);
                 return;
@@ -1248,7 +1248,7 @@ namespace Shop
                 {
                     try
                     {
-                        if (player.Group.HasPermission(TShock.Groups.GetGroupByName(group).Name))
+                        if (player.Group.Name == TShock.Groups.GetGroupByName(group).Name)
                         {
                             return true;
                         }

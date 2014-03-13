@@ -56,9 +56,9 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\refs\TShockAPI.dll</HintPath>
     </Reference>
-    <Reference Include="Wolfje.Plugins.SEconomy, Version=1.0.10.0, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="Wolfje.Plugins.SEconomy, Version=1.0.11.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\refs\Wolfje.Plugins.SEconomy.dll</HintPath>
+      <HintPath>..\..\Wolfje.Plugins\Wolfje.Plugins.SEconomy\bin\Release\Wolfje.Plugins.SEconomy.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
