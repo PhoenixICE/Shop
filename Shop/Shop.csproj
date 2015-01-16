@@ -58,7 +58,7 @@
     </Reference>
     <Reference Include="Wolfje.Plugins.SEconomy, Version=1.0.11.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\Wolfje.Plugins\Wolfje.Plugins.SEconomy\bin\Release\Wolfje.Plugins.SEconomy.dll</HintPath>
+      <HintPath>..\..\..\..\Source\Repos\cytoplugins2\CytoPlugins\Libraries\Wolfje.Plugins.SEconomy.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>

@@ -20,13 +20,12 @@ using TShockAPI.DB;
 using TShockAPI.Hooks;
 
 using Wolfje.Plugins.SEconomy;
-using Wolfje.Plugins.SEconomy.Economy;
 using Wolfje.Plugins.SEconomy.Journal;
 
 
 namespace Shop
 {
-    [ApiVersion(1, 15)]
+    [ApiVersion(1, 16)]
     public class Shop : TerrariaPlugin
     {
         internal ShopData ShopList;
@@ -382,8 +381,8 @@ namespace Shop
                 {
                     args.Player.SendInfoMessage("Info: /trade add (item) (amount) [witem] [wamount]");
                     args.Player.SendInfoMessage("Info: Set the item you wish to trade and the amount of them, optionally set the item you wish to trade for and the amount of them");
-                    args.Player.SendInfoMessage("Info: /trade add (item) (amount) ({0})", SEconomyPlugin.Configuration.MoneyConfiguration.MoneyName);
-                    args.Player.SendInfoMessage("Info: Set the item you wish to trade, the amount of them and the amount of {0} you wish to exchange for.", SEconomyPlugin.Configuration.MoneyConfiguration.MoneyName);
+                    args.Player.SendInfoMessage("Info: /trade add (item) (amount) ({0})", SEconomyPlugin.Instance.Configuration.MoneyConfiguration.MoneyName);
+                    args.Player.SendInfoMessage("Info: Set the item you wish to trade, the amount of them and the amount of {0} you wish to exchange for.", SEconomyPlugin.Instance.Configuration.MoneyConfiguration.MoneyName);
                     return;
                 }
                 //Trading with minimum required amount of args
@@ -444,7 +443,7 @@ namespace Shop
                 {
                     if (!args.Player.Group.HasPermission("store.trade.add.currency"))
                     {
-                        args.Player.SendErrorMessage("Error: You do not have permission to add trades for {0}!", SEconomyPlugin.Configuration.MoneyConfiguration.MoneyName);
+                        args.Player.SendErrorMessage("Error: You do not have permission to add trades for {0}!", SEconomyPlugin.Instance.Configuration.MoneyConfiguration.MoneyName);
                         return;
                     }
                     int stack;
@@ -623,7 +622,7 @@ namespace Shop
                             string witem = "";
                             if (obj.ItemID == 0)
                             {
-                                item = SEconomyPlugin.Configuration.MoneyConfiguration.MoneyName; ;
+                                item = SEconomyPlugin.Instance.Configuration.MoneyConfiguration.MoneyName; ;
                             }
                             else
                             {
@@ -632,7 +631,7 @@ namespace Shop
 
                             if (obj.WItemID == 0)
                             {
-                                witem = SEconomyPlugin.Configuration.MoneyConfiguration.MoneyName;
+                                witem = SEconomyPlugin.Instance.Configuration.MoneyConfiguration.MoneyName;
                             }
                             else
                             {
@@ -733,9 +732,9 @@ namespace Shop
                     else
                     {
                         //get users account
-                        EconomyPlayer eaccount = SEconomyPlugin.GetEconomyPlayerByBankAccountNameSafe(args.Player.Name);
+                        var eaccount = SEconomyPlugin.Instance.GetBankAccount(args.Player.Name);
                         //check if user actually has that much to pay
-                        if (eaccount.BankAccount.Balance >= wstack)
+                        if (eaccount.Balance >= wstack)
                         {
                             bool recived = false;
                             for (int i = 0; i < 50; i++)
@@ -750,7 +749,7 @@ namespace Shop
                                     NetMessage.SendData((int)PacketTypes.PlayerSlot, args.Player.Index, -1, "", args.Player.Index, i);
                                     args.Player.SendInfoMessage("Sucess: Item Collected! You have Gained {0} of {1}.", obj.Stack, TShock.Utils.GetItemById(obj.ItemID).name);
                                     recived = true;
-                                    eaccount.BankAccount.TransferToAsync(SEconomyPlugin.WorldAccount, wstack, BankAccountTransferOptions.IsPayment | BankAccountTransferOptions.AnnounceToSender, null, string.Format("Shop Plugin: Traded {0} for {1}", obj.ItemID, ((Money)wstack).ToLongString()));
+                                    eaccount.TransferToAsync(SEconomyPlugin.Instance.WorldAccount, wstack, BankAccountTransferOptions.IsPayment | BankAccountTransferOptions.AnnounceToSender, null, string.Format("Shop Plugin: Traded {0} for {1}", obj.ItemID, ((Money)wstack).ToLongString()));
                                     break;
                                 }
                             }
@@ -763,7 +762,7 @@ namespace Shop
                         }
                         else
                         {
-                            args.Player.SendErrorMessage("Error: You do not have enough {0}", SEconomyPlugin.Configuration.MoneyConfiguration.MoneyName);
+                            args.Player.SendErrorMessage("Error: You do not have enough {0}", SEconomyPlugin.Instance.Configuration.MoneyConfiguration.MoneyName);
                             args.Player.SendErrorMessage("Error: Required amount is {0}", ((Money)wstack).ToLongString());
                             return;
                         }
@@ -835,8 +834,8 @@ namespace Shop
                             else
                             {
                                 TradeList.processAccept(args.Player, obj);
-                                EconomyPlayer eaccount = SEconomyPlugin.GetEconomyPlayerSafe(args.Player.Index);
-                                SEconomyPlugin.WorldAccount.TransferToAsync(eaccount.BankAccount, obj.Stack, BankAccountTransferOptions.IsPayment | BankAccountTransferOptions.AnnounceToReceiver, null, string.Format("Shop: Collected Offer ID {0}", obj.ID));
+                                var eaccount = SEconomyPlugin.Instance.GetBankAccount(args.Player.Index);
+                                SEconomyPlugin.Instance.WorldAccount.TransferToAsync(eaccount, obj.Stack, BankAccountTransferOptions.IsPayment | BankAccountTransferOptions.AnnounceToReceiver, null, string.Format("Shop: Collected Offer ID {0}", obj.ID));
                             }
                         }
                     }
@@ -903,7 +902,7 @@ namespace Shop
                         string witem = "";
                         if (obj.ItemID == 0)
                         {
-                            item = SEconomyPlugin.Configuration.MoneyConfiguration.MoneyName; ;
+                            item = SEconomyPlugin.Instance.Configuration.MoneyConfiguration.MoneyName; ;
                         }
                         else
                         {
@@ -912,7 +911,7 @@ namespace Shop
 
                         if (obj.WItemID == 0)
                         {
-                            witem = SEconomyPlugin.Configuration.MoneyConfiguration.MoneyName;
+                            witem = SEconomyPlugin.Instance.Configuration.MoneyConfiguration.MoneyName;
 
                         }
                         else
@@ -1171,9 +1170,9 @@ namespace Shop
             }
 
             //Check if player has enough money to purchase the item
-            EconomyPlayer account = Wolfje.Plugins.SEconomy.SEconomyPlugin.GetEconomyPlayerSafe(player.Index);
+            var account = Wolfje.Plugins.SEconomy.SEconomyPlugin.Instance.GetBankAccount(player.Index);
             //Make sure balance of user is greater then group cost
-            if (account.BankAccount.Balance < cost)
+            if (account.Balance < cost)
             {
                 player.SendErrorMessage("Error: You do not have enough to Purchase this item!");
                 player.SendErrorMessage("Required: {0}!", ((Money)cost).ToLongString());
@@ -1185,7 +1184,7 @@ namespace Shop
             {
                 //All checks completed
                 //Remove money and place in worldaccount
-                account.BankAccount.TransferToAsync(SEconomyPlugin.WorldAccount, cost, Wolfje.Plugins.SEconomy.Journal.BankAccountTransferOptions.IsPayment, obj.Item, string.Format("Shop: {0} purhcase {1} stack of {2}", player.Name, stack, item.name));
+                account.TransferToAsync(SEconomyPlugin.Instance.WorldAccount, cost, Wolfje.Plugins.SEconomy.Journal.BankAccountTransferOptions.IsPayment, obj.Item, string.Format("Shop: {0} purhcase {1} stack of {2}", player.Name, stack, item.name));
             }
             else
             {
